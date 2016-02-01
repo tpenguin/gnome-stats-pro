@@ -567,7 +567,7 @@ const MemoryIndicator = new Lang.Class({
     _updateValues: function() {
         GTop.glibtop_get_mem(this.mem);
 
-        let t = (this.mem.free + this.mem.shared + this.mem.buffer + this.mem.locked + this.mem.cached) / this.mem.total;
+        let t = this.mem.user / this.mem.total;
         this.stats['mem-used'].values.push(t);
     }
 });
