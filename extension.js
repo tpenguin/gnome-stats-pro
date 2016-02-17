@@ -15,8 +15,9 @@ const NetworkManager = imports.gi.NetworkManager;
 const Main = imports.ui.main;
 const Tweener = imports.ui.tweener;
 
-const Gettext = imports.gettext.domain('gnome-shell-extensions');
-const _ = Gettext.gettext;
+// FIXME: Add gettext...
+//const Gettext = imports.gettext.domain('gnome-shell-extensions');
+//const _ = Gettext.gettext;
 
 const ExtensionUtils = imports.misc.extensionUtils;
 const Me = ExtensionUtils.getCurrentExtension();
@@ -37,25 +38,281 @@ function merge_options(obj1, obj2) {
     return obj3;
 }
 
-const VerticalIndicator = new Lang.Class({
-    Name: 'SystemMonitor.VerticalIndicator',
+Number.prototype.formatMetricPretty = function(units) {
+    let value = this;
+    let metricPrefix = "";
+
+    if (value > 1024 * 1024) {
+        value /= 1024 * 1024;
+        metricPrefix = "Mi";
+    } else if (value > 1024) {
+        value /= 1024;
+        metricPrefix = "Ki";
+    }
+
+    return "%0.2f %s%s".format(value, metricPrefix, units || "");
+};
+
+function GraphOverlay(options) {
+    this.label = undefined;
+
+    this._init(options);
+}
+
+GraphOverlay.prototype = {
+    Name: 'GnomeStatsPro.GraphOverlay',
+
+    _init: function() {
+        this.label = new St.Label({style_class:'label'});
+
+        this.actor = new St.Bin({
+            style_class:'gsp-graph-overlay',
+            reactive: true,
+            x_fill: true,
+            y_fill: true
+        });
+
+        this.actor.add_actor(this.label);
+
+        Main.layoutManager.addChrome(this.actor);
+        this.actor.hide();
+    },
+
+    destroy: function() {
+        this.actor.destroy();
+    }
+};
+
+function HorizontalGraph(options) {
+    this.graph = undefined;
+    this.renderStats = [];
+    this.stats = {};
+    this.max = -1;
+    this.options = {
+        updateInterval: INDICATOR_UPDATE_INTERVAL,
+        offsetX: 2,
+        offsetY: -1,
+        units: '',
+        gridColor: '-grid-color',
+        autoscale: true,
+        showMax: true,
+        max: 0
+    };
+
+    this._init(options);
+
+    if (!this.options.autoscale) {
+        this.max = this.options.max;
+        this._updateMaxLabel();
+    }
+}
+
+HorizontalGraph.prototype = {
+    Name: 'HorizontalGraph',
+
+    _init: function(options) {
+        this.options = merge_options(this.options, options || {});
+
+        this.graph = new St.DrawingArea({reactive: true});
+        this.graph.connect('repaint', Lang.bind(this, this._draw));
+
+        this.actor = new St.Bin({
+            style_class: 'gsp-graph-area',
+            reactive: true,
+            x_fill: true,
+            y_fill: true
+        });
+        this.actor.add_actor(this.graph);
+
+        this.graphoverlay = new GraphOverlay;
+
+        this._timeout = Mainloop.timeout_add(this.options.updateInterval, Lang.bind(this, function() {
+            if (this.graph.visible) {
+                this.graph.queue_repaint();
+            }
+            return true;
+        }));
+    },
+
+    destroy: function() {
+        Mainloop.source_remove(this._timeout);
+
+        this.actor.destroy();
+    },
+
+    addDataSet: function(name, color) {
+        this.renderStats.push(name);
+        this.stats[name] = {color: color, values: [], scaled: [], max: -1};
+    },
+
+    addDataPoint: function(name, value) {
+        this.stats[name].values.push(value);
+    },
+
+    // Calculate maximum value within set of values.
+    _updateDataSetMax: function(name) {
+        this.stats[name].max = this.stats[name].values.reduce(function (prev, cur) {
+            return Math.max(prev, cur);
+        }, 0);
+
+        if (this.max < this.stats[name].max) {
+            this.max = this.stats[name].max;
+            this._updateMaxLabel();
+        }
+    },
+
+    _updateMax: function() {
+        let max = 0;
+
+        this.renderStats.map(Lang.bind(this, function(k){
+            max = Math.max(this.stats[k].max, max);
+        }));
+
+        if (max < this.max) {
+            this.max = max;
+            this._updateMaxLabel();
+        }
+    },
+
+    _updateMaxLabel: function() {
+        if (this.options.showMax) {
+            this.graphoverlay.label.set_text(this.max.formatMetricPretty(this.options.units));
+        }
+    },
+
+    // Used to draws major/minor division lines within the graph.
+    _drawGridLines: function(cr, width, gridOffset, count, color) {
+        for (let i = 1; i <= count; ++i) {
+            cr.moveTo(0, i * gridOffset + .5);
+            cr.lineTo(width, i * gridOffset + .5);
+        }
+        Clutter.cairo_set_source_color(cr, color);
+        cr.setLineWidth(1);
+        cr.setDash([2,1], 0);
+        cr.stroke();
+    },
+
+    _draw: function(area) {
+        let [width, height] = area.get_surface_size();
+        let themeNode = this.actor.get_theme_node();
+        let cr = area.get_context();
+
+        //draw the background grid
+        let color = themeNode.get_color(this.options.gridColor);
+        let gridOffset = Math.floor(height / (INDICATOR_NUM_GRID_LINES + 1));
+
+        // draws major divisions
+        this._drawGridLines(cr, width, gridOffset, INDICATOR_NUM_GRID_LINES, color);
+
+        // draws minor divisions
+        color.alpha = color.alpha * 0.2;
+        this._drawGridLines(cr, width, gridOffset/2, INDICATOR_NUM_GRID_LINES * 2 + 1, color);
+
+        let renderStats = this.renderStats;
+        renderStats.map(Lang.bind(this, function(k){
+            let stat = this.stats[k];
+            let new_width = width + 1;
+
+            // truncate data point values to width of graph
+            if (stat.values.length > new_width) {
+                stat.values = stat.values.slice(stat.values.length - new_width, stat.values.length);
+            }
+
+            if (this.options.autoscale) {
+                // Calculate maximum value within set of stat.values
+                this._updateDataSetMax(k);
+            }
+        }));
+
+        if (this.options.autoscale) {
+            // Fixes max over all data points.
+            this._updateMax();
+        }
+
+        // Scale all data points over max
+        renderStats.map(Lang.bind(this, function(k){
+            this.stats[k].scaled = this.stats[k].values.map(Lang.bind(this, function (cur) {
+                return cur / this.max;
+            }));
+        }));
+
+        for (let i = 0; i < renderStats.length; ++i) {
+            let stat = this.stats[renderStats[i]];
+            let outlineColor = themeNode.get_color(stat.color);
+
+            if (i == 0) {
+                let color = new Clutter.Color(outlineColor);
+                color.alpha = color.alpha * 0.2;
+
+                // Render the first dataset's fill
+                this._plotDataSet(cr, height, stat.scaled);
+                cr.lineTo(stat.scaled.length - 1, height);
+                cr.lineTo(0, height);
+                cr.closePath();
+                Clutter.cairo_set_source_color(cr, color);
+                cr.fill();
+            }
+
+            // Render the data points
+            this._plotDataSet(cr, height, stat.scaled);
+            Clutter.cairo_set_source_color(cr, outlineColor);
+            cr.setLineWidth(1.0);
+            cr.setDash([], 0);
+            cr.stroke();
+        }
+    },
+
+    _plotDataSet: function(cr, height, values) {
+        cr.moveTo(0, (1 - values[0]) * height);
+        for (let k = 1; k < values.length; ++k) {
+            cr.lineTo(k, (1 - values[k]) * height);
+        }
+    },
+
+    setOverlayPosition: function(x, y) {
+        this.graphoverlay.actor.set_position(x + this.options.offsetX,
+                                             y + this.options.offsetY);
+    },
+
+    show: function() {
+        this.graphoverlay.actor.show();
+        this.graphoverlay.actor.opacity = 0;
+
+        Tweener.addTween(this.graphoverlay.actor,
+                         {
+                             opacity: 255,
+                             time: ITEM_LABEL_SHOW_TIME,
+                             transition: 'easeOutQuad'
+                         });
+    },
+
+    hide: function() {
+        this.graphoverlay.actor.hide();
+    }
+};
+
+const Indicator = new Lang.Class({
+    Name: 'GnomeStatsPro.Indicator',
 
     options: {
         updateInterval: INDICATOR_UPDATE_INTERVAL,
         barPadding: 1,
-        barWidth: 6
+        barWidth: 6,
+        gridColor: '-grid-color'
     },
+
+    ready: false,
 
     _init: function(options) {
         // process optionals
         this.options = merge_options(this.options, options || {});
+        this.stats = {};
+        this.renderStats = [];
 
         this._barPadding = this.options.barPadding;
         this._barWidth = this.options.barWidth;
 
         // permit subclass to optionally initialize
-        //
-        // TODO: Remove this and replace with differring hooks.
         this._initValues();
 
         // create UI elements
@@ -67,95 +324,99 @@ const VerticalIndicator = new Lang.Class({
             return true;
         });
 
-        this.actor = new St.Bin({ style_class: "extension-gnomeStatsPro-verticalIndicator-area",
+        this.actor = new St.Bin({ style_class: "gsp-indicator",
                                   reactive: true, track_hover: true,
                                   x_fill: true, y_fill: true });
-
-        // Create box
-        let hbox = new St.BoxLayout({ style_class: 'panel-status-menu-box' });
-
-        // add label, then graph
-        this.smallLabel = new St.Label({ style_class: 'extension-gnomeStatsPro-verticalIndicator-smallLabel', y_align: Clutter.ActorAlign.CENTER });
-        this.smallLabel.clutter_text.line_wrap = true;
-        // this.smallLabel.clutter_text.line_wrap_mode = Pango.WrapMode.WORD;
-        this.smallLabel.set_text(this._smallLabel);
-
-        let labelWidth = this.smallLabel.get_width();
-        let y = this.smallLabel.get_height();
-
-        this.actor.add_actor(this.smallLabel);
         this.actor.add_actor(this.drawing_area);
-
-//        let [stageX, stageY] = this.actor.get_transformed_position();
-
-//        this.smallLabel.set_position(stageX, stageY + 40); 
 
         this.resized = false;
 
+        this.dropdown = new St.Widget({
+            layout_manager: new Clutter.GridLayout(),
+            reactive: true,
+            style_class: 'gsp-dropdown'
+        });
+        Main.layoutManager.addChrome(this.dropdown);
+        this.dropdown.hide();
+
         this._timeout = Mainloop.timeout_add(this.options.updateInterval, Lang.bind(this, function () {
-            this._updateValues();
-            this.drawing_area.queue_repaint();
+            if (this.ready) {
+                this._updateValues();
+                this.drawing_area.queue_repaint();
+            }
             return true;
         }));
     },
 
-    showLabel: function() {
-        if (this.label == null)
-            return;
+    addDataSet: function(name, color) {
+        this.renderStats.push(name);
+        this.stats[name] = {color: color, values: []};
+    },
 
-        this.label.opacity = 0;
-        this.label.show();
+    addDataPoint: function(name, value) {
+        this.stats[name].values.push(value);
+    },
+
+    enable: function() {
+        this.ready = true;
+    },
+
+    showPopup: function(graph) {
+        this.dropdown.opacity = 0;
+        this.dropdown.show();
 
         let [stageX, stageY] = this.actor.get_transformed_position();
 
 	      let itemWidth = this.actor.allocation.x2 - this.actor.allocation.x1;
         let itemHeight = this.actor.allocation.y2 - this.actor.allocation.y1;
 
-	      let labelWidth = this.label.width;
-        let labelHeight = this.label.height;
+	      let labelWidth = this.dropdown.width;
+        let labelHeight = this.dropdown.height;
         let xOffset = Math.floor((itemWidth - labelWidth) / 2);
 
         let x = stageX + xOffset;
 
-        let node = this.label.get_theme_node();
+        let node = this.dropdown.get_theme_node();
         let yOffset = node.get_length('-y-offset');
 
         let y = stageY + itemHeight + yOffset;
 
-        this.label.set_position(x, y);
-        Tweener.addTween(this.label,
-                         { opacity: 255,
-                           time: ITEM_LABEL_SHOW_TIME,
-                           transition: 'easeOutQuad'
-                         });
+        this.dropdown.set_position(x, y);
+
+        Tweener.addTween(
+            this.dropdown,
+            {
+                opacity: 255,
+                time: ITEM_LABEL_SHOW_TIME,
+                transition: 'easeOutQuad',
+                onComplete: function() {
+                    if (graph !== undefined) {
+                        let [x1, y1] = graph.actor.get_position();
+                        graph.setOverlayPosition(x + x1, y + y1);
+                        graph.show();
+                    }
+                }
+            });
     },
 
-    setLabelText: function(text) {
-        if (this.label == null)
-            this.label = new St.Label({ style_class: 'extension-systemMonitor-indicator-label'});
-
-        this.label.set_text(text);
-        Main.layoutManager.addChrome(this.label);
-        this.label.hide();
-    },
-
-    hideLabel: function () {
-        Tweener.addTween(this.label,
-                         { opacity: 0,
-                           time: ITEM_LABEL_HIDE_TIME,
-                           transition: 'easeOutQuad',
-                           onComplete: Lang.bind(this, function() {
-                               this.label.hide();
-                           })
-                         });
+    hidePopup: function (graph) {
+        Tweener.addTween(
+            this.dropdown,
+            {
+                opacity: 0,
+                time: ITEM_LABEL_HIDE_TIME,
+                transition: 'easeOutQuad',
+                onComplete: Lang.bind(this, function() {
+                    graph.hide();
+                    this.dropdown.hide();
+                })
+            });
     },
 
     destroy: function() {
         Mainloop.source_remove(this._timeout);
 
         this.actor.destroy();
-	      if (this.label)
-	          this.label.destroy();
     },
 
     _createPanel: function() {
@@ -188,34 +449,24 @@ const VerticalIndicator = new Lang.Class({
         }
 
         //draw the background grid
-        let color = themeNode.get_color(this.gridColor);
+        let color = themeNode.get_color(this.options.gridColor);
         let gridOffset = Math.floor(height / (INDICATOR_NUM_GRID_LINES + 1));
         for (let i = 1; i <= INDICATOR_NUM_GRID_LINES; ++i) {
-                cr.moveTo(0, i * gridOffset + .5);
-                cr.lineTo(width, i * gridOffset + .5);
+            cr.moveTo(0, i * gridOffset + .5);
+            cr.lineTo(width, i * gridOffset + .5);
         }
         Clutter.cairo_set_source_color(cr, color);
         cr.setLineWidth(1);
         cr.setDash([2,1], 0);
         cr.stroke();
 
-        //draw the foreground
-        let self = this;
-        function makeVPath(position, values, reverse, nudge) {
-            if (nudge == null) {
-                nudge = 0;
-            }
-
-            cr.moveTo(position * (self._barWidth + self._barPadding) + self._barPadding, (1 - values[0]) * height + nudge);
-            cr.lineTo((position + 1) * (self._barWidth + self._barPadding), (1 - values[0]) * height + nudge);
-        }
-
         let renderStats = this.renderStats;
 
         // Make sure we don't have more sample points than pixels
         renderStats.map(Lang.bind(this, function(k){
             let stat = this.stats[k];
-            let keepNumStats = 3; //width + 2;
+            let keepNumStats = 3;
+
             if (stat.values.length > keepNumStats) {
                 stat.values = stat.values.slice(stat.values.length - keepNumStats, stat.values.length);
             }
@@ -228,264 +479,60 @@ const VerticalIndicator = new Lang.Class({
             let color = new Clutter.Color(outlineColor);
             color.alpha = color.alpha * .8;
 
-            // Render the background between us and the next level
-            makeVPath(i, stat.values, false);
-
-            // If there is a process below us, render the cpu between us and it, otherwise, 
-            // render to the bottom of the chart
-            //if (i == renderStats.length - 1) {
-
-            // padding 2 width 16
-            //
-            // 0th: 2,y 18,y
-            // 1th: 20,y 36,y
-            // 2th: 38,y 54,y
+            // Render the bar graph's fill
+            this._plotDataSet(cr, height, i, stat.values, false);
             cr.lineTo((i + 1) * (this._barWidth + this._barPadding), height);
             cr.lineTo(i * (this._barWidth + this._barPadding) + this._barPadding, height);
             cr.closePath();
-            //} else {
-            //    let nextStat = this.stats[renderStats[i+1]];
-            //    makePath(nextStat.values, true);
-                //let nextStat = this.stats[renderStats[i+1]];
-                //makePath(i+1, nextStat.values, true);
-            //}
-            //cr.closePath()
             Clutter.cairo_set_source_color(cr, color);
             cr.fill();
 
-            // Render the outline of this level
-            makeVPath(i, stat.values, false, .5);
+            // Render the bar graph's height line
+            this._plotDataSet(cr, height, i, stat.values, false, .5);
             Clutter.cairo_set_source_color(cr, outlineColor);
             cr.setLineWidth(1.0);
             cr.setDash([], 0);
             cr.stroke();
         }
-
-        // Render the label
-
-    }
-});
-
-const Indicator = new Lang.Class({
-    Name: 'SystemMonitor.Indicator',
-
-    options: {
-        updateInterval: INDICATOR_UPDATE_INTERVAL
     },
 
-    _init: function(options) {
-        // process optionals
-        this.options = merge_options(this.options, options || {});
+    _plotDataSet: function(cr, height, position, values, reverse, nudge = 0) {
+        let barOuterWidth = this._barWidth + this._barPadding;
+        let barHeight = 1 - values[0];
 
-        // permit subclass to optionally initialize
-        //
-        // TODO: Remove this and replace with differring hooks.
-        this._initValues();
-
-        // create GUI elements
-        this.drawing_area = new St.DrawingArea({ reactive: true });
-        this.drawing_area.connect('repaint', Lang.bind(this, this._draw));
-        this.drawing_area.connect('button-press-event', function() {
-            let app = Shell.AppSystem.get_default().lookup_app('gnome-system-monitor.desktop');
-            app.open_new_window(-1);
-            return true;
-        });
-
-        this.actor = new St.Bin({ style_class: "extension-systemMonitor-indicator-area",
-                                  reactive: true, track_hover: true,
-				  x_fill: true, y_fill: true });
-        this.actor.add_actor(this.drawing_area);
-
-        // schedule UI stats value updates on us
-        this._timeout = Mainloop.timeout_add(this.options.updateInterval, Lang.bind(this, function () {
-            this._updateValues();
-            this.drawing_area.queue_repaint();
-            return true;
-        }));
-    },
-
-    showLabel: function() {
-        if (this.label == null)
-            return;
-
-        this.label.opacity = 0;
-        this.label.show();
-
-        let [stageX, stageY] = this.actor.get_transformed_position();
-
-	      let itemWidth = this.actor.allocation.x2 - this.actor.allocation.x1;
-        let itemHeight = this.actor.allocation.y2 - this.actor.allocation.y1;
-
-	      let labelWidth = this.label.width;
-        let labelHeight = this.label.height;
-        let xOffset = Math.floor((itemWidth - labelWidth) / 2);
-
-        let x = stageX + xOffset;
-
-        let node = this.label.get_theme_node();
-        let yOffset = node.get_length('-y-offset');
-
-        let y = stageY + this.label.get_height() + yOffset - 6;
-
-        this.label.set_position(x, y);
-        Tweener.addTween(this.label,
-                         { opacity: 255,
-                           time: ITEM_LABEL_SHOW_TIME,
-                           transition: 'easeOutQuad',
-                         });
-    },
-
-    setLabelText: function(text) {
-        if (this.label == null)
-            this.label = new St.Label({ style_class: 'extension-systemMonitor-indicator-label'});
-
-        this.label.set_text(text);
-        Main.layoutManager.addChrome(this.label);
-        this.label.hide();
-    },
-
-    hideLabel: function () {
-        Tweener.addTween(this.label,
-                         { opacity: 0,
-                           time: ITEM_LABEL_HIDE_TIME,
-                           transition: 'easeOutQuad',
-                           onComplete: Lang.bind(this, function() {
-                               this.label.hide();
-                           })
-                         });
-    },
-
-    destroy: function() {
-        Mainloop.source_remove(this._timeout);
-
-        this.actor.destroy();
-	      if (this.label)
-	          this.label.destroy();
-    },
-
-    _createPanel: function() {
-    },
-
-    _destroyPanel: function() {
-    },
-
-    onShowPanel: function() {
-    },
-
-    onHidePanel: function() {
-    },
-
-    _initValues: function() {
-    },
-
-    _updateValues: function() {
-    },
-
-    _draw: function(area) {
-        let [width, height] = area.get_surface_size();
-        let themeNode = this.actor.get_theme_node();
-        let cr = area.get_context();
-
-        //draw the background grid
-        let color = themeNode.get_color(this.gridColor);
-        let gridOffset = Math.floor(height / (INDICATOR_NUM_GRID_LINES + 1));
-        for (let i = 1; i <= INDICATOR_NUM_GRID_LINES; ++i) {
-                cr.moveTo(0, i * gridOffset + .5);
-                cr.lineTo(width, i * gridOffset + .5);
-        }
-        Clutter.cairo_set_source_color(cr, color);
-        cr.setLineWidth(1);
-        cr.setDash([2,1], 0);
-        cr.stroke();
-
-        //draw the foreground
-
-        function makePath(values, reverse, nudge) {
-            if (nudge == null) {
-                nudge = 0;
-            }
-            //if we are going in reverse, we are completing the bottom of a chart, so use lineTo
-            if (reverse) {
-                cr.lineTo(values.length - 1, (1 - values[values.length - 1]) * height + nudge);
-                for (let k = values.length - 2; k >= 0; --k) {
-                    cr.lineTo(k, (1 - values[k]) * height + nudge);
-                }
-            } else {
-                cr.moveTo(0, (1 - values[0]) * height + nudge);
-                for (let k = 1; k < values.length; ++k) {
-                    cr.lineTo(k, (1 - values[k]) * height + nudge);
-                }
-            }
-        }
-
-        let renderStats = this.renderStats;
-
-        // Make sure we don't have more sample points than pixels
-        renderStats.map(Lang.bind(this, function(k){
-            let stat = this.stats[k];
-            let new_width = width + 2;
-            if (stat.values.length > new_width) {
-                stat.values = stat.values.slice(stat.values.length - new_width, stat.values.length);
-            }
-        }));
-
-        for (let i = 0; i < renderStats.length; ++i) {
-            let stat = this.stats[renderStats[i]];
-            // We outline at full opacity and fill with 40% opacity
-            let outlineColor = themeNode.get_color(stat.color);
-            let color = new Clutter.Color(outlineColor);
-            color.alpha = color.alpha * .4;
-
-            // Render the background between us and the next level
-            makePath(stat.values, false);
-            // If there is a process below us, render the cpu between us and it, otherwise, 
-            // render to the bottom of the chart
-            if (i == renderStats.length - 1) {
-                cr.lineTo(stat.values.length - 1, height);
-                cr.lineTo(0, height);
-                cr.closePath();
-            } else {
-                let nextStat = this.stats[renderStats[i+1]];
-                makePath(nextStat.values, true);
-            }
-            cr.closePath()
-            Clutter.cairo_set_source_color(cr, color);
-            cr.fill();
-
-            // Render the outline of this level
-            makePath(stat.values, false, .5);
-            Clutter.cairo_set_source_color(cr, outlineColor);
-            cr.setLineWidth(1.0);
-            cr.setDash([], 0);
-            cr.stroke();
-        }
+        cr.moveTo(position * barOuterWidth + this._barPadding, barHeight * height + nudge);
+        cr.lineTo((position + 1) * barOuterWidth, barHeight * height + nudge);
     }
 });
 
 const CpuIndicator = new Lang.Class({
-    Name: 'SystemMonitor.CpuIndicator',
-    Extends: VerticalIndicator,
+    Name: 'GnomeStatsPro.CpuIndicator',
+    Extends: Indicator,
 
     _init: function() {
-        this._smallLabel = "c";
-
         this.parent({
             updateInterval: 250,
             decay: 0.8
         });
 
-        // Populate statistics available keys
-        this.renderStats = [];
-        for (var i=0; i<this.ncpu; ++i) {
-            let key = 'cpu_' + i;
-            this.renderStats.push(key);
-        }
+        this.current_label = new St.Label({style_class:'title_label'});
+        this.current_label.set_text("Current:");
 
-        // Configure grid coloring
-        this.gridColor = '-grid-color';
+        this.current_cpu_label = new St.Label({style_class:'description_label'});
+        this.current_cpu_label.set_text("Total CPU usage");
+        this.current_cpu_value = new St.Label({style_class:'value_label'});
 
-        // Set hover label text
-    	  this.setLabelText(_("CPU"));
+        let layout = this.dropdown.layout_manager;
+
+        this.cpu_graph = new HorizontalGraph({autoscale: false, max: 100, units: '%', showMax: false});
+        this.cpu_graph.addDataSet('cpu-usage', '-cpu-color');
+
+        layout.attach(this.cpu_graph.actor, 0, 0, 2, 1);
+
+        let x = 0, y = 1;
+        layout.attach(this.current_label, x+0, y+0, 2, 1);
+        layout.attach(this.current_cpu_label, x+0, y+1, 1, 1);
+        layout.attach(this.current_cpu_value, x+1, y+1, 1, 1);
     },
 
     _initValues: function() {
@@ -505,136 +552,250 @@ const CpuIndicator = new Lang.Class({
         this._pcpu = [];
 
         // populate statistics variables
-        this.stats = {};
         for (let cpu = 0; cpu < this.ncpu; cpu++) {
             let key = 'cpu_' + cpu;
 
-            this.stats[key] = {color: '-cpu-color', values: []};
+            this.addDataSet(key, "-cpu-color");
             this._pcpu[cpu] = 0;
         }
+
+        this.enable();
     },
 
     _updateValues: function() {
         // Query current iteration CPU statistics
         let cpu = new GTop.glibtop_cpu;
+        let cpu_ttl_usage = 0;
+
         GTop.glibtop_get_cpu(cpu);
 
         // Collect per-CPU statistics
         for (var i=0; i<this.ncpu; ++i) {
-            let total = cpu.xcpu_total[i] - this._prev.xcpu_total[i];
-            let idle = cpu.xcpu_idle[i] - this._prev.xcpu_idle[i];
+            let total = Math.max(cpu.xcpu_total[i] - this._prev.xcpu_total[i], 0);
+            let idle = Math.max(cpu.xcpu_idle[i] - this._prev.xcpu_idle[i], 0);
             let key = 'cpu_' + i;
 
-            let reading = 1.0 - idle / total;
+            let reading = 0;
+            if (total > 0) {
+                reading = 1.0 - (idle / total);
+            }
 
-            let decay_value = Math.min(this._pcpu[i] * this.options.decay, 0.999999999);
-            let value = Math.max(reading, decay_value);
+            cpu_ttl_usage += reading;
+
+            let decayed_value = Math.min(this._pcpu[i] * this.options.decay, 0.999999999);
+            let value = Math.max(reading, decayed_value);
+
+            this.addDataPoint(key, value);
+
             this._pcpu[i] = value;
-
-            this.stats[key].values.push(value);
         }
+
+        cpu_ttl_usage /= this.ncpu;
+        cpu_ttl_usage *= 100;
+        this.cpu_graph.addDataPoint('cpu-usage', cpu_ttl_usage);
+
+        let cpu_ttl_text = "%s%%".format(cpu_ttl_usage.formatMetricPretty(''));
+        this.current_cpu_value.set_text(cpu_ttl_text);
 
         // Store this iteration for next calculation run
         this._prev = cpu;
+    },
+
+    showPopup: function() {
+        this.parent(this.cpu_graph);
+    },
+
+    hidePopup: function() {
+        this.parent(this.cpu_graph);
     }
 });
 
 const MemoryIndicator = new Lang.Class({
-    Name: 'SystemMonitor.MemoryIndicator',
-    Extends: VerticalIndicator,
+    Name: 'GnomeStatsPro.MemoryIndicator',
+    Extends: Indicator,
 
     _init: function() {
-        this._smallLabel = "m";
-
         this.parent({
             updateInterval: 1000
         });
 
-        this.gridColor = '-grid-color';
+        this.current_label = new St.Label({style_class:'title_label'});
+        this.current_label.set_text("Current:");
 
-        this.renderStats = [ 'mem-used' ];
+        this.current_mem_label = new St.Label({style_class:'description_label'});
+        this.current_mem_label.set_text("Total memory usage");
+        this.current_mem_value = new St.Label({style_class:'value_label'});
 
-    	  this.setLabelText(_("Memory"));
+        let layout = this.dropdown.layout_manager;
+
+        GTop.glibtop_get_mem(this.mem);
+
+        this.mem_graph = new HorizontalGraph({autoscale: false, units: 'B', max: this.mem.total});
+        this.mem_graph.addDataSet('mem-used', '-mem-used-color');
+
+        layout.attach(this.mem_graph.actor, 0, 0, 2, 1);
+
+        let x = 0, y = 1;
+        layout.attach(this.current_label, x+0, y+0, 2, 1);
+        layout.attach(this.current_mem_label, x+0, y+1, 1, 1);
+        layout.attach(this.current_mem_value, x+1, y+1, 1, 1);
     },
 
     _initValues: function() {
         this.mem = new GTop.glibtop_mem;
-        this.stats = {
-                        'mem-used': { color: "-mem-used-color", values: [] }
-                     };
+
+        this.addDataSet('mem-used', '-mem-used-color');
+        this.enable();
     },
 
     _updateValues: function() {
         GTop.glibtop_get_mem(this.mem);
 
-        let t = this.mem.user / this.mem.total;
-        this.stats['mem-used'].values.push(t);
+        let mem_used = this.mem.user;
+        if (this.mem.slab !== undefined)
+            mem_used -= this.mem.slab;
+        let t = mem_used / this.mem.total;
+        this.addDataPoint('mem-used', t);
+
+        this.mem_graph.addDataPoint('mem-used', mem_used);
+
+        let mem_ttl_text = "%s".format(mem_used.formatMetricPretty('B'));
+        this.current_mem_value.set_text(mem_ttl_text);
+    },
+
+    showPopup: function() {
+        this.parent(this.mem_graph);
+    },
+
+    hidePopup: function() {
+        this.parent(this.mem_graph);
     }
 });
 
 const SwapIndicator = new Lang.Class({
-    Name: 'SystemMonitor.SwapIndicator',
-    Extends: VerticalIndicator,
+    Name: 'GnomeStatsPro.SwapIndicator',
+    Extends: Indicator,
 
     _init: function() {
-        this._smallLabel = "s";
-
         this.parent({
             updateInterval: 2000
         });
 
-        this.gridColor = '-grid-color';
+        this.current_label = new St.Label({style_class:'title_label'});
+        this.current_label.set_text("Current:");
 
-        this.renderStats = [ 'swap-used' ];
+        this.current_swap_label = new St.Label({style_class:'description_label'});
+        this.current_swap_label.set_text("Total swap usage");
+        this.current_swap_value = new St.Label({style_class:'value_label'});
 
-    	  this.setLabelText(_("Swap Memory"));
+        let layout = this.dropdown.layout_manager;
+
+        GTop.glibtop_get_swap(this.swap);
+
+        this.swap_graph = new HorizontalGraph({autoscale: false, max: this.swap.total, units: 'B'});
+        this.swap_graph.addDataSet('swap-used', '-swap-used-color');
+
+        layout.attach(this.swap_graph.actor, 0, 0, 2, 1);
+
+        let x = 0, y = 1;
+        layout.attach(this.current_label, x+0, y+0, 2, 1);
+        layout.attach(this.current_swap_label, x+0, y+1, 1, 1);
+        layout.attach(this.current_swap_value, x+1, y+1, 1, 1);
     },
 
     _initValues: function() {
-        this.mem = new GTop.glibtop_swap;
-        this.stats = {
-                        'swap-used': { color: "-mem-used-color", values: [] }
-                     };
+        this.swap = new GTop.glibtop_swap;
+
+        this.addDataSet('swap-used', '-swap-used-color');
+        this.enable();
     },
 
     _updateValues: function() {
-        GTop.glibtop_get_swap(this.mem);
+        GTop.glibtop_get_swap(this.swap);
 
-        let t = this.mem.used / this.mem.total;
-        this.stats['swap-used'].values.push(t);
+        let t = this.swap.used / this.swap.total;
+        this.addDataPoint('swap-used', t);
 
-    	//this.setLabelText(_(this._bytes_to_mega(this.mem.used) + " MB of swap memory in use.\n\n" + this._bytes_to_mega(this.mem.total) + " MB of swap available."));
+        this.swap_graph.addDataPoint('swap-used', this.swap.used);
+
+        let swap_ttl_text = "%s".format(this.swap.used.formatMetricPretty('B'));
+        this.current_swap_value.set_text(swap_ttl_text);
 
         if (t > 0.5) {
-            this.stats['swap-used'].color = "-mem-used-bad-color";
+            this.stats['swap-used'].color = "-swap-used-bad-color";
         } else if (t > 0.25) {
-            this.stats['swap-used'].color = "-mem-used-warn-color";
+            this.stats['swap-used'].color = "-swap-used-warn-color";
         } else {
-            this.stats['swap-used'].color = "-mem-used-color";
+            this.stats['swap-used'].color = "-swap-used-color";
         }
     },
 
-    _bytes_to_mega: function(bytes) {
-        return Math.round(bytes / 1024 / 1024);
+    showPopup: function() {
+        this.parent(this.swap_graph);
+    },
+
+    hidePopup: function() {
+        this.parent(this.swap_graph);
     }
 });
 
 const NetworkIndicator = new Lang.Class({
-    Name: 'SystemMonitor.NetworkIndicator',
-    Extends: VerticalIndicator,
+    Name: 'GnomeStatsPro.NetworkIndicator',
+    Extends: Indicator,
 
     _init: function() {
-        this._smallLabel = "n";
-
         this.parent();
 
-        this.gridColor = '-grid-color';
+        this.current_label = new St.Label({style_class:'title_label'});
+        this.current_label.set_text("Current:");
 
-        this.renderStats = [ 'network-in-used', 'network-out-used' ];
+        this.current_in_label = new St.Label({style_class:'description_label'});
+        this.current_in_label.set_text("Inbound");
+        this.current_in_value = new St.Label({style_class:'value_label'});
 
-    	  this.setLabelText(_("Network (in,out)"));
+        this.current_out_label = new St.Label({style_class:'description_label'});
+        this.current_out_label.set_text("Outbound");
+        this.current_out_value = new St.Label({style_class:'value_label'});
 
-        this._initValues();
+        this.maximum_label = new St.Label({style_class:'title_label'});
+        this.maximum_label.set_text("Maximum (over 2 hours):");
+
+        this.maximum_in_label = new St.Label({style_class:'description_label'});
+        this.maximum_in_label.set_text("Inbound");
+        this.maximum_in_value = new St.Label({style_class:'value_label'});
+
+        this.maximum_out_label = new St.Label({style_class:'description_label'});
+        this.maximum_out_label.set_text("Outbound");
+        this.maximum_out_value = new St.Label({style_class:'value_label'});
+
+        let layout = this.dropdown.layout_manager;
+
+        this.net_graph = new HorizontalGraph({units: "b/s"});
+        this.net_graph.addDataSet('network-in-used', '-network-in-color');
+        this.net_graph.addDataSet('network-out-used', '-network-out-color');
+
+        layout.attach(this.net_graph.actor, 0, 0, 2, 1);
+
+        let x = 0, y = 1;
+        layout.attach(this.current_label, x+0, y+0, 2, 1);
+        layout.attach(this.current_in_label, x+0, y+1, 1, 1);
+        layout.attach(this.current_in_value, x+1, y+1, 1, 1);
+        layout.attach(this.current_out_label, x+0, y+2, 1, 1);
+        layout.attach(this.current_out_value, x+1, y+2, 1, 1);
+
+        layout.attach(this.maximum_label, x+0, y+3, 2, 1);
+        layout.attach(this.maximum_in_label, x+0, y+4, 1, 1);
+        layout.attach(this.maximum_in_value, x+1, y+4, 1, 1);
+        layout.attach(this.maximum_out_label, x+0, y+5, 1, 1);
+        layout.attach(this.maximum_out_value, x+1, y+5, 1, 1);
+    },
+
+    showPopup: function() {
+        this.parent(this.net_graph);
+    },
+
+    hidePopup: function() {
+        this.parent(this.net_graph);
     },
 
     _initValues: function() {
@@ -651,13 +812,9 @@ const NetworkIndicator = new Lang.Class({
         this._last_time = 0;
         this._total = 0;
 
-        this.stats = {
-            'network-in-used': { color: "-network-ok-color", values: [] },
-            'network-out-used': { color: "-network-ok-color", values: [] }
-        };
-
-        this.stats['network-in-used'].values.push(0);
-        this.stats['network-out-used'].values.push(0);
+        this.addDataSet('network-in-used', '-network-ok-color');
+        this.addDataSet('network-out-used', '-network-ok-color');
+        this.enable();
     },
 
     _update_iface_list: function() {
@@ -678,7 +835,6 @@ const NetworkIndicator = new Lang.Class({
 
     _updateValues: function() {
         let accum = [0, 0, 0, 0, 0, 0];
-
         for (let ifn in this._ifs) {
             GTop.glibtop_get_netload(this._gtop, this._ifs[ifn]);
             accum[0] += this._gtop.bytes_in;
@@ -691,7 +847,6 @@ const NetworkIndicator = new Lang.Class({
 
         let time = GLib.get_monotonic_time() * 0.000001024; // seconds
         let delta = time - this._last_time;
-
         if (delta > 0) {
             for (let i = 0; i < 5; i++) {
                 this._usage[i] = (accum[i] - this._last[i]) / delta;
@@ -720,13 +875,23 @@ const NetworkIndicator = new Lang.Class({
                 this._previous[2] = 56 * 1024;
             } else {
                 /* Store current traffic values */
-                this.stats['network-in-used'].values.push(this._usage[0] / this._previous[0]);
-                this.stats['network-out-used'].values.push(this._usage[2] / this._previous[2]);
+                this.addDataPoint('network-in-used', this._usage[0] / this._previous[0]);
+                this.addDataPoint('network-out-used', this._usage[2] / this._previous[2]);
 
-                if (this.label !== null) {
-                    let text = "Network\n\nCurrent:\n%sbps in\n%sbps out\n\nDecayed Maximum:\n%sbps in\n%sbps out".format(this.formatNumber(this._usage[0]), this.formatNumber(this._usage[2]), this.formatNumber(this._previous[0]), this.formatNumber(this._previous[2]));
-                    this.label.set_text(text);
-                }
+                this.net_graph.addDataPoint('network-in-used', this._usage[0]);
+                this.net_graph.addDataPoint('network-out-used', this._usage[2]);
+
+                let in_value = "%sb/s".format(this._usage[0].formatMetricPretty());
+                this.current_in_value.set_text(in_value);
+
+                let out_value = "%sb/s".format(this._usage[2].formatMetricPretty());
+                this.current_out_value.set_text(out_value);
+
+                let max_in_value = "%sb/s".format(this._previous[0].formatMetricPretty());
+                this.maximum_in_value.set_text(max_in_value);
+
+                let max_out_value = "%sb/s".format(this._previous[2].formatMetricPretty());
+                this.maximum_out_value.set_text(max_out_value);
             }
 
             /* Report errors for incoming traffic */
@@ -744,86 +909,66 @@ const NetworkIndicator = new Lang.Class({
             }
         }
         this._last_time = time;
-    },
-
-    formatNumber: function(v) {
-        let m = v / (1024 * 1024);
-        let f = "";
-        if (v > 1024 * 1024) {
-            v /= 1024 * 1024;
-            f = "M";
-        } else if (v > 1024) {
-            v /= 1024;
-            f = "K";
-        }
-        return "%0.2f %s".format(v, f);
     }
 });
 
 const INDICATORS = [CpuIndicator, MemoryIndicator, SwapIndicator, NetworkIndicator];
 
 const Extension = new Lang.Class({
-    Name: 'SystemMonitor.Extension',
+    Name: 'GnomeStatsPro.Extension',
 
     _init: function() {
-	Convenience.initTranslations();
+	      Convenience.initTranslations();
 
-	this._showLabelTimeoutId = 0;
-	this._resetHoverTimeoutId = 0;
-	this._labelShowing = false;
+	      this._showPopupTimeoutId = 0;
+	      this._resetHoverTimeoutId = 0;
+	      this._popupShowing = false;
     },
 
     enable: function() {
-	this._box = new St.BoxLayout({ style_class: 'extension-systemMonitor-container',
-				       x_align: Clutter.ActorAlign.START,
-				       x_expand: true });
-	this._indicators = [ ];
+	      this._box = new St.BoxLayout({ style_class: 'gsp-container',
+				                               x_align: Clutter.ActorAlign.START,
+				                               x_expand: true });
+	      this._indicators = [ ];
 
-	for (let i = 0; i < INDICATORS.length; i++) {
-	    let indicator = new (INDICATORS[i])();
+	      for (let i = 0; i < INDICATORS.length; i++) {
+	          let indicator = new (INDICATORS[i])();
 
             indicator.actor.connect('notify::hover', Lang.bind(this, function() {
-		this._onHover(indicator);
-	    }));
-	    this._box.add_actor(indicator.actor);
-	    this._indicators.push(indicator);
-	}
+		            this._onHover(indicator);
+	          }));
+	          this._box.add_actor(indicator.actor);
+	          this._indicators.push(indicator);
+	      }
 
-	this._boxHolder = new St.BoxLayout({ x_expand: true,
-					     y_expand: true,
-					     x_align: Clutter.ActorAlign.START,
-					   });
-	//let menuButton = Main.messageTray._messageTrayMenuButton.actor;
-	//Main.messageTray.actor.remove_child(menuButton);
-	//Main.messageTray.actor.add_child(this._boxHolder);
+	      this._boxHolder = new St.BoxLayout({ x_expand: true,
+					                                   y_expand: true,
+					                                   x_align: Clutter.ActorAlign.START
+					                                 });
+	      this._boxHolder.add_child(this._box);
 
-	this._boxHolder.add_child(this._box);
-    //this._boxHolder.add_child(menuButton);
-    Main.panel._rightBox.insert_child_at_index(this._boxHolder, 0);
+        Main.panel._rightBox.insert_child_at_index(this._boxHolder, 0);
     },
 
     disable: function() {
-	this._indicators.forEach(function(i) { i.destroy(); });
+	      this._indicators.forEach(function(i) { i.destroy(); });
 
-	//let menuButton = Main.messageTray._messageTrayMenuButton.actor;
-	//this._boxHolder.remove_child(menuButton);
-    //Main.messageTray.actor.add_child(menuButton);
-    Main.panel._rightBox.remove_child(this._boxHolder);
+        Main.panel._rightBox.remove_child(this._boxHolder);
 
-    this._boxHolder.remove_child(this._box);
+        this._boxHolder.remove_child(this._box);
 
-	this._box.destroy();
-	this._boxHolder.destroy();
+	      this._box.destroy();
+	      this._boxHolder.destroy();
     },
 
     _onHover: function (item) {
         if (item.actor.get_hover()) {
-            if (this._showLabelTimeoutId == 0) {
-                let timeout = this._labelShowing ? 0 : ITEM_HOVER_TIMEOUT;
-                this._showLabelTimeoutId = Mainloop.timeout_add(timeout,
+            if (this._showPopupTimeoutId == 0) {
+                let timeout = this._popupShowing ? 0 : ITEM_HOVER_TIMEOUT;
+                this._showPopupTimeoutId = Mainloop.timeout_add(timeout,
                     Lang.bind(this, function() {
-                        this._labelShowing = true;
-                        item.showLabel();
+                        this._popupShowing = true;
+                        item.showPopup();
                         return false;
                     }));
                 if (this._resetHoverTimeoutId > 0) {
@@ -832,21 +977,33 @@ const Extension = new Lang.Class({
                 }
             }
         } else {
-            if (this._showLabelTimeoutId > 0)
-                Mainloop.source_remove(this._showLabelTimeoutId);
-            this._showLabelTimeoutId = 0;
-            item.hideLabel();
-            if (this._labelShowing) {
+            if (this._showPopupTimeoutId > 0)
+                Mainloop.source_remove(this._showPopupTimeoutId);
+            this._showPopupTimeoutId = 0;
+            item.hidePopup();
+            if (this._popupShowing) {
                 this._resetHoverTimeoutId = Mainloop.timeout_add(ITEM_HOVER_TIMEOUT,
                     Lang.bind(this, function() {
-                        this._labelShowing = false;
+                        this._popupShowing = false;
                         return false;
                     }));
             }
         }
-    },
+    }
 });
 
-function init() {
-    return new Extension();
+let _indicator;
+
+function init() {}
+
+function enable() {
+    _indicator = new Extension;
+    _indicator.enable();
+}
+
+function disable() {
+    _indicator.disable();
+
+    _indicator.destroy();
+    _indicator = undefined;
 }
