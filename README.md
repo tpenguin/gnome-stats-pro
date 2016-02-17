@@ -23,7 +23,7 @@ Support is available through the GitHub project page
 [here](https://github.com/tpenguin/gnome-stats-pro/issues).
 
 Please note this is a open-source, community project, and thus
-no guarentees on response time is implied.
+no guarantees on response time is implied.
 
 ## Contributing
 
