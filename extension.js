@@ -992,18 +992,6 @@ const Extension = new Lang.Class({
     }
 });
 
-let _indicator;
-
-function init() {}
-
-function enable() {
-    _indicator = new Extension;
-    _indicator.enable();
-}
-
-function disable() {
-    _indicator.disable();
-
-    _indicator.destroy();
-    _indicator = undefined;
+function init() {
+    return new Extension;
 }
