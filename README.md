@@ -17,6 +17,11 @@ display of historical utilizations.
 * [Gnome-Stats-Pro](https://github.com/tpenguin/gnome-stats-pro) is available on GitHub.
 * [Gnome-Stats-Pro](http://cgit.benden.us/cgit.cgi/gnome-stats-pro/) is also available locally on this server, in case the others are non-functional.
 
+## Known Bugs
+
+* libgtop has a bug with memory usage with Linux. This is fixed within
+  libgtop's master branch at commit c33623c0 from 2015-07-14.
+
 ## Support
 
 Support is available through the GitHub project page
