@@ -923,42 +923,53 @@ const Extension = new Lang.Class({
 	      this._showPopupTimeoutId = 0;
 	      this._resetHoverTimeoutId = 0;
 	      this._popupShowing = false;
+
+          this._createIndicators();
+    },
+
+    _createIndicators: function() {
+          this._box = new St.BoxLayout({
+              style_class: 'gsp-container',
+              x_align: Clutter.ActorAlign.START,
+              x_expand: true
+          });
+          this._indicators = [ ];
+
+          for (let i = 0; i < INDICATORS.length; i++) {
+              let indicator = new (INDICATORS[i])();
+
+              indicator.actor.connect('notify::hover', Lang.bind(this, function() {
+                    this._onHover(indicator);
+              }));
+              this._box.add_actor(indicator.actor);
+              this._indicators.push(indicator);
+          }
+
+          this._boxHolder = new St.BoxLayout({
+              x_expand: true,
+              y_expand: true,
+              x_align: Clutter.ActorAlign.START
+          });
+          this._boxHolder.add_child(this._box);
     },
 
     enable: function() {
-	      this._box = new St.BoxLayout({ style_class: 'gsp-container',
-				                               x_align: Clutter.ActorAlign.START,
-				                               x_expand: true });
-	      this._indicators = [ ];
-
-	      for (let i = 0; i < INDICATORS.length; i++) {
-	          let indicator = new (INDICATORS[i])();
-
-            indicator.actor.connect('notify::hover', Lang.bind(this, function() {
-		            this._onHover(indicator);
-	          }));
-	          this._box.add_actor(indicator.actor);
-	          this._indicators.push(indicator);
-	      }
-
-	      this._boxHolder = new St.BoxLayout({ x_expand: true,
-					                                   y_expand: true,
-					                                   x_align: Clutter.ActorAlign.START
-					                                 });
-	      this._boxHolder.add_child(this._box);
-
         Main.panel._rightBox.insert_child_at_index(this._boxHolder, 0);
     },
 
     disable: function() {
-	      this._indicators.forEach(function(i) { i.destroy(); });
+        Main.panel._rightBox.remove_child(this._boxHolder);
+    },
+
+    destroy: function() {
+	    this._indicators.forEach(function(i) { i.destroy(); });
 
         Main.panel._rightBox.remove_child(this._boxHolder);
 
         this._boxHolder.remove_child(this._box);
 
-	      this._box.destroy();
-	      this._boxHolder.destroy();
+	    this._box.destroy();
+	    this._boxHolder.destroy();
     },
 
     _onHover: function (item) {
