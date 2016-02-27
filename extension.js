@@ -512,7 +512,7 @@ const CpuIndicator = new Lang.Class({
     _init: function() {
         this.parent({
             updateInterval: 250,
-            decay: 0.8
+            decay: 0.2
         });
 
         this.current_label = new St.Label({style_class:'title_label'});
