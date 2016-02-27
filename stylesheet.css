@@ -67,6 +67,8 @@
     -mem-used-bad-color: rgb(240,85,0);
 
     -swap-used-color: rgb(0,190,240);
+    -swap-used-warn-color: rgb(240,190,0);
+    -swap-used-bad-color: rgb(240,85,0);
 
     -network-ok-color: rgb(0,190,240);
     -network-warn-color: rgb(240,190,0);
