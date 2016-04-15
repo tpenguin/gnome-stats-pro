@@ -818,11 +818,24 @@ const NetworkIndicator = new Lang.Class({
     },
 
     _update_iface_list: function() {
+        if (this._iface_list != undefined && this._ifSignalIds != undefined) {
+            for (let j = 0; j < this._ifSignalIds.length; j++) {
+                this._iface_list[j].disconnect(this._ifSignalIds[j]);
+            }
+
+            this._iface_list = null;
+            this._ifSignalIds = null;
+        }
+
         try {
             this._ifs = [];
             this._ifs_speed = [];
+            this._ifSignalIds = [];
             let iface_list = this._nmclient.get_devices();
+            this._iface_list = iface_list;
+
             for (let j = 0; j < iface_list.length; j++) {
+                this._ifSignalIds[j] = iface_list[j].connect('state-changed', Lang.bind(this, this._update_iface_list));
                 if (iface_list[j].state == NetworkManager.DeviceState.ACTIVATED) {
                     this._ifs.push(iface_list[j].get_ip_iface() || iface_list[j].get_iface());
                     this._ifs_speed.push((iface_list[j].get_speed !== undefined ? iface_list[j].get_speed() : -1));
