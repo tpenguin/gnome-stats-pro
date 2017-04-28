@@ -11,6 +11,11 @@ for GNOME that brings easy visualization of system resources such as:
 In addition to utilization displayed in the tray, it offers drop down
 display of historical utilizations.
 
+## Requirements
+
+* libgtop
+  * Ubuntu 17.04 users should install the `gir1.2-gtop-2.0` package.
+
 ## How to Download
 
 * [Gnome-Stats-Pro](https://extensions.gnome.org/extension/1043/gnomestatspro/) is available on GNOME's Extension Repository.
