@@ -367,10 +367,10 @@ const Indicator = new Lang.Class({
 
         let [stageX, stageY] = this.actor.get_transformed_position();
 
-	      let itemWidth = this.actor.allocation.x2 - this.actor.allocation.x1;
+	    let itemWidth = this.actor.allocation.x2 - this.actor.allocation.x1;
         let itemHeight = this.actor.allocation.y2 - this.actor.allocation.y1;
 
-	      let labelWidth = this.dropdown.width;
+	    let labelWidth = this.dropdown.width;
         let labelHeight = this.dropdown.height;
         let xOffset = Math.floor((itemWidth - labelWidth) / 2);
 
