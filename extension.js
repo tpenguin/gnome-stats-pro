@@ -339,14 +339,6 @@ const Indicator = new Lang.Class({
         });
         Main.layoutManager.addChrome(this.dropdown);
         this.dropdown.hide();
-
-        this._timeout = Mainloop.timeout_add(this.options.updateInterval, Lang.bind(this, function () {
-            if (this.ready) {
-                this._updateValues();
-                this.drawing_area.queue_repaint();
-            }
-            return true;
-        }));
     },
 
     addDataSet: function(name, color) {
@@ -365,7 +357,26 @@ const Indicator = new Lang.Class({
     },
 
     enable: function() {
+        if (this._timeout === undefined || this._timeout < 1) {
+            this._timeout = Mainloop.timeout_add(this.options.updateInterval, Lang.bind(this, function () {
+                if (this.ready) {
+                    this._updateValues();
+                    this.drawing_area.queue_repaint();
+                }
+                return true;
+            }));
+        }
+
         this.ready = true;
+    },
+
+    disable: function() {
+        this.ready = false;
+
+        if (this._timeout > 0) {
+            Mainloop.source_remove(this._timeout);
+            this._timeout = 0;
+        }
     },
 
     showPopup: function(graph) {
@@ -421,7 +432,11 @@ const Indicator = new Lang.Class({
     },
 
     destroy: function() {
-        Mainloop.source_remove(this._timeout);
+        this.ready = false;
+
+        if (this._timeout > 0) {
+            Mainloop.source_remove(this._timeout);
+        }
 
         this.actor.destroy();
     },
@@ -975,11 +990,23 @@ const Extension = new Lang.Class({
           this._boxHolder.add_child(this._box);
     },
 
+    get showInLockScreen() {
+        return true;
+    },
+
+    get detailsInLockScreen() {
+        return false;
+    },
+
     enable: function() {
+        this._indicators.forEach(function(i) { i.enable(); });
+
         Main.panel._rightBox.insert_child_at_index(this._boxHolder, 0);
     },
 
     disable: function() {
+        this._indicators.forEach(function(i) { i.disable(); });
+
         Main.panel._rightBox.remove_child(this._boxHolder);
     },
 
