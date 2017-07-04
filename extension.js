@@ -993,6 +993,7 @@ const Extension = new Lang.Class({
                     Lang.bind(this, function() {
                         this._popupShowing = true;
                         item.showPopup();
+                        this._showPopupTimeoutId = 0;
                         return false;
                     }));
                 if (this._resetHoverTimeoutId > 0) {
@@ -1009,6 +1010,7 @@ const Extension = new Lang.Class({
                 this._resetHoverTimeoutId = Mainloop.timeout_add(ITEM_HOVER_TIMEOUT,
                     Lang.bind(this, function() {
                         this._popupShowing = false;
+                        this._resetHoverTimeoutId = 0;
                         return false;
                     }));
             }
