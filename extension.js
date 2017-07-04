@@ -328,6 +328,7 @@ const Indicator = new Lang.Class({
                                   reactive: true, track_hover: true,
                                   x_fill: true, y_fill: true });
         this.actor.add_actor(this.drawing_area);
+        this.actor.connect('notify::visible', Lang.bind(this, this._onVisibilityChanged));
 
         this.resized = false;
 
@@ -355,6 +356,12 @@ const Indicator = new Lang.Class({
 
     addDataPoint: function(name, value) {
         this.stats[name].values.push(value);
+    },
+
+    _onVisibilityChanged: function() {
+        if (!this.actor.visible) {
+            this.dropdown.hide();
+        }
     },
 
     enable: function() {
