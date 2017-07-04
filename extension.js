@@ -301,11 +301,10 @@ const Indicator = new Lang.Class({
         gridColor: '-grid-color'
     },
 
-    ready: false,
-
     _init: function(options) {
         // process optionals
         this.options = merge_options(this.options, options || {});
+        this.ready = false;
         this.stats = {};
         this.renderStats = [];
 
