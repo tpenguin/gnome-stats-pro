@@ -438,6 +438,8 @@ const Indicator = new Lang.Class({
     },
 
     _draw: function(area) {
+        if (!this.ready) return;
+
         let [width, height] = area.get_surface_size();
         let cr = area.get_context();
         let themeNode = this.actor.get_theme_node();
