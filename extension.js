@@ -305,6 +305,7 @@ const Indicator = new Lang.Class({
         // process optionals
         this.options = merge_options(this.options, options || {});
         this.ready = false;
+        this._timeout = 0;
         this.stats = {};
         this.renderStats = [];
 
