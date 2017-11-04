@@ -1,5 +1,9 @@
 /* -*- mode: js2; js2-basic-offset: 4; indent-tabs-mode: nil -*- */
 
+/* Ugly. This is here so that we don't crash old libnm-glib based shells unnecessarily
+ * by loading the new libnm.so. Should go away eventually */
+const libnm_glib = imports.gi.GIRepository.Repository.get_default().is_registered("NMClient", "1.0");
+
 const Clutter = imports.gi.Clutter;
 const GLib = imports.gi.GLib;
 const GTop = imports.gi.GTop;
@@ -8,9 +12,9 @@ const Mainloop = imports.mainloop;
 const St = imports.gi.St;
 const Shell = imports.gi.Shell;
 
-// requires RPMs: NetworkManager-libnm-devel
-const NMClient = imports.gi.NMClient;
-const NetworkManager = imports.gi.NetworkManager;
+// requires RPMs: NetworkManager-libnm
+const NM = libnm_glib ? imports.gi.NMClient : imports.gi.NM;
+const NetworkManager = libnm_glib ? imports.gi.NetworkManager : NM;
 
 const Main = imports.ui.main;
 const Tweener = imports.ui.tweener;
@@ -829,7 +833,7 @@ const NetworkIndicator = new Lang.Class({
         this._usage = [0, 0, 0, 0, 0];
         this._usedp = 0;
         this._previous = [-1, -1, -1, -1, -1];
-        this._nmclient = NMClient.Client.new();
+        this._nmclient = libnm_glib ? NM.Client.new() : NM.Client.new(null);
         this._update_iface_list();
 
         this._gtop = new GTop.glibtop_netload;
