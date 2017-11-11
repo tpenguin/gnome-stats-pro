@@ -267,7 +267,7 @@ HorizontalGraph.prototype = {
     },
 
     _plotDataSet: function(cr, height, values) {
-        cr.moveTo(0, (1 - values[0]) * height);
+        cr.moveTo(0, (1 - (values[0] || 0)) * height);
         for (let k = 1; k < values.length; ++k) {
             cr.lineTo(k, (1 - values[k]) * height);
         }
@@ -526,7 +526,7 @@ const Indicator = new Lang.Class({
 
     _plotDataSet: function(cr, height, position, values, reverse, nudge = 0) {
         let barOuterWidth = this._barWidth + this._barPadding;
-        let barHeight = 1 - values[0];
+        let barHeight = 1 - (values[0] || 0);
 
         cr.moveTo(position * barOuterWidth + this._barPadding, barHeight * height + nudge);
         cr.lineTo((position + 1) * barOuterWidth, barHeight * height + nudge);
