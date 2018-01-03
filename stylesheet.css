@@ -84,16 +84,17 @@
     font-size: 9pt;
     font-weight: bold;
     height: 264px;
+    width: 384px;
 }
 
 .gsp-dropdown .description_label {
   text-align: left;
-  width: 128px;
+  width: 256px;
 }
 
 .gsp-dropdown .value_label {
   text-align: right;
-  width: 96px;
+  width: 128px;
 }
 
 .gsp-dropdown .title_label {
