@@ -467,6 +467,7 @@ const Indicator = new Lang.Class({
     },
 
     _draw: function(area) {
+	if (!this.actor.get_stage()) return;
         if (!this.ready) return;
 
         let [width, height] = area.get_surface_size();
