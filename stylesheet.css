@@ -14,29 +14,28 @@
     height: 96px;
     width: 8px;
 
-    -grid-color: #575757;
+    grid-color: #575757;
 
-    -cpu-total-color: rgb(0,154,62);
-    -cpu-user-color: rgb(69,154,0);
-    -cpu-sys-color: rgb(255,253,81);
-    -cpu-iowait-color: rgb(210,148,0);
+    cpu-color: rgb(0,190,240);
+    cpu-total-color: rgb(0,154,62);
+    cpu-user-color: rgb(69,154,0);
+    cpu-sys-color: rgb(255,253,81);
+    cpu-iowait-color: rgb(210,148,0);
 
-    -mem-user-color: rgb(210,148,0);
-    -mem-cached-color: rgb(90,90,40);
-    -mem-other-color: rgb(205,203,41);
+    mem-user-color: rgb(210,148,0);
+    mem-cached-color: rgb(90,90,40);
+    mem-other-color: rgb(205,203,41);
 
-    -mem-used-color: rgb(0,190,240);
-    -mem-used-warn-color: rgb(240,190,0);
-    -mem-used-bad-color: rgb(240,85,0);
+    mem-used-color: rgb(0,190,240);
+    mem-used-warn-color: rgb(240,190,0);
+    mem-used-bad-color: rgb(240,85,0);
 
-    -swap-used-color: rgb(0,190,240);
-    -swap-used-warn-color: rgb(240,190,0);
-    -swap-used-bad-color: rgb(240,85,0);
+    swap-used-color: rgb(0,190,240);
+    swap-used-warn-color: rgb(240,190,0);
+    swap-used-bad-color: rgb(240,85,0);
 
-    -cpu-color: rgb(0,190,240);
-
-    -network-in-color: rgb(0,190,240);
-    -network-out-color: rgb(242,0,124);
+    network-in-color: rgb(0,190,240);
+    network-out-color: rgb(242,0,124);
 }
 
 .gsp-graph-overlay .label {
@@ -51,28 +50,28 @@
     height: 28px;
     width: 8px;
 
-    -grid-color: #575757;
+    grid-color: #575757;
 
-    -cpu-color: rgb(0,190,240);
-    -cpu-total-color: rgb(0,154,62);
-    -cpu-user-color: rgb(69,154,0);
-    -cpu-sys-color: rgb(255,253,81);
-    -cpu-iowait-color: rgb(210,148,0);
+    cpu-color: rgb(0,190,240);
+    cpu-total-color: rgb(0,154,62);
+    cpu-user-color: rgb(69,154,0);
+    cpu-sys-color: rgb(255,253,81);
+    cpu-iowait-color: rgb(210,148,0);
 
-    -mem-user-color: rgb(210,148,0);
-    -mem-cached-color: rgb(90,90,40);
-    -mem-other-color: rgb(205,203,41);
-    -mem-used-color: rgb(0,190,240);
-    -mem-used-warn-color: rgb(240,190,0);
-    -mem-used-bad-color: rgb(240,85,0);
+    mem-user-color: rgb(210,148,0);
+    mem-cached-color: rgb(90,90,40);
+    mem-other-color: rgb(205,203,41);
+    mem-used-color: rgb(0,190,240);
+    mem-used-warn-color: rgb(240,190,0);
+    mem-used-bad-color: rgb(240,85,0);
 
-    -swap-used-color: rgb(0,190,240);
-    -swap-used-warn-color: rgb(240,190,0);
-    -swap-used-bad-color: rgb(240,85,0);
+    swap-used-color: rgb(0,190,240);
+    swap-used-warn-color: rgb(240,190,0);
+    swap-used-bad-color: rgb(240,85,0);
 
-    -network-ok-color: rgb(0,190,240);
-    -network-warn-color: rgb(240,190,0);
-    -network-bad-color: rgb(240,85,0);
+    network-ok-color: rgb(0,190,240);
+    network-warn-color: rgb(240,190,0);
+    network-bad-color: rgb(240,85,0);
 }
 
 .gsp-dropdown {

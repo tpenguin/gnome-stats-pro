@@ -97,7 +97,7 @@ function HorizontalGraph(options) {
         offsetX: 2,
         offsetY: -1,
         units: '',
-        gridColor: '-grid-color',
+        gridColor: 'grid-color',
         autoscale: true,
         showMax: true,
         max: 0
@@ -302,7 +302,7 @@ const Indicator = new Lang.Class({
         updateInterval: INDICATOR_UPDATE_INTERVAL,
         barPadding: 1,
         barWidth: 6,
-        gridColor: '-grid-color'
+        gridColor: 'grid-color'
     },
 
     _init: function(options) {
@@ -557,7 +557,7 @@ const CpuIndicator = new Lang.Class({
         let layout = this.dropdown.layout_manager;
 
         this.cpu_graph = new HorizontalGraph({autoscale: false, max: 100, units: '%', showMax: false});
-        this.cpu_graph.addDataSet('cpu-usage', '-cpu-color');
+        this.cpu_graph.addDataSet('cpu-usage', 'cpu-color');
 
         layout.attach(this.cpu_graph.actor, 0, 0, 2, 1);
 
@@ -587,7 +587,7 @@ const CpuIndicator = new Lang.Class({
         for (let cpu = 0; cpu < this.ncpu; cpu++) {
             let key = 'cpu_' + cpu;
 
-            this.addDataSet(key, "-cpu-color");
+            this.addDataSet(key, "cpu-color");
             this._pcpu[cpu] = 0;
         }
 
@@ -663,7 +663,7 @@ const MemoryIndicator = new Lang.Class({
         GTop.glibtop_get_mem(this.mem);
 
         this.mem_graph = new HorizontalGraph({autoscale: false, units: 'B', max: this.mem.total});
-        this.mem_graph.addDataSet('mem-used', '-mem-used-color');
+        this.mem_graph.addDataSet('mem-used', 'mem-used-color');
 
         layout.attach(this.mem_graph.actor, 0, 0, 2, 1);
 
@@ -676,7 +676,7 @@ const MemoryIndicator = new Lang.Class({
     _initValues: function() {
         this.mem = new GTop.glibtop_mem;
 
-        this.addDataSet('mem-used', '-mem-used-color');
+        this.addDataSet('mem-used', 'mem-used-color');
         this.enable();
     },
 
@@ -725,7 +725,7 @@ const SwapIndicator = new Lang.Class({
         GTop.glibtop_get_swap(this.swap);
 
         this.swap_graph = new HorizontalGraph({autoscale: false, max: this.swap.total, units: 'B'});
-        this.swap_graph.addDataSet('swap-used', '-swap-used-color');
+        this.swap_graph.addDataSet('swap-used', 'swap-used-color');
 
         layout.attach(this.swap_graph.actor, 0, 0, 2, 1);
 
@@ -738,7 +738,7 @@ const SwapIndicator = new Lang.Class({
     _initValues: function() {
         this.swap = new GTop.glibtop_swap;
 
-        this.addDataSet('swap-used', '-swap-used-color');
+        this.addDataSet('swap-used', 'swap-used-color');
         this.enable();
     },
 
@@ -754,11 +754,11 @@ const SwapIndicator = new Lang.Class({
         this.current_swap_value.set_text(swap_ttl_text);
 
         if (t > 0.5) {
-            this.stats['swap-used'].color = "-swap-used-bad-color";
+            this.stats['swap-used'].color = "swap-used-bad-color";
         } else if (t > 0.25) {
-            this.stats['swap-used'].color = "-swap-used-warn-color";
+            this.stats['swap-used'].color = "swap-used-warn-color";
         } else {
-            this.stats['swap-used'].color = "-swap-used-color";
+            this.stats['swap-used'].color = "swap-used-color";
         }
     },
 
@@ -803,8 +803,8 @@ const NetworkIndicator = new Lang.Class({
         let layout = this.dropdown.layout_manager;
 
         this.net_graph = new HorizontalGraph({units: "b/s"});
-        this.net_graph.addDataSet('network-in-used', '-network-in-color');
-        this.net_graph.addDataSet('network-out-used', '-network-out-color');
+        this.net_graph.addDataSet('network-in-used', 'network-in-color');
+        this.net_graph.addDataSet('network-out-used', 'network-out-color');
 
         layout.attach(this.net_graph.actor, 0, 0, 2, 1);
 
@@ -844,8 +844,8 @@ const NetworkIndicator = new Lang.Class({
         this._last_time = 0;
         this._total = 0;
 
-        this.addDataSet('network-in-used', '-network-ok-color');
-        this.addDataSet('network-out-used', '-network-ok-color');
+        this.addDataSet('network-in-used', 'network-ok-color');
+        this.addDataSet('network-out-used', 'network-ok-color');
         this.enable();
     },
 
@@ -941,16 +941,16 @@ const NetworkIndicator = new Lang.Class({
 
             /* Report errors for incoming traffic */
             if (this._previous[1] > 0 || this._previous[4] > 0) {
-                this.stats['network-in-used'].color = "-network-bad-color";
+                this.stats['network-in-used'].color = "network-bad-color";
             } else {
-                this.stats['network-in-used'].color = "-network-ok-color";
+                this.stats['network-in-used'].color = "network-ok-color";
             }
 
             /* Report errors for outgoing traffic */
             if (this._previous[3] > 0 || this._previous[4] > 0) {
-                this.stats['network-out-used'].color = "-network-bad-color";
+                this.stats['network-out-used'].color = "network-bad-color";
             } else {
-                this.stats['network-out-used'].color = "-network-ok-color";
+                this.stats['network-out-used'].color = "network-ok-color";
             }
         }
         this._last_time = time;
