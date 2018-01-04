@@ -387,6 +387,9 @@ const Indicator = new Lang.Class({
         this.dropdown.opacity = 0;
         this.dropdown.show();
 
+	let monitorIndex = Main.layoutManager.primaryIndex;
+	let monitor = Main.layoutManager.monitors[monitorIndex];
+
         let [stageX, stageY] = this.actor.get_transformed_position();
 
 	    let itemWidth = this.actor.allocation.x2 - this.actor.allocation.x1;
@@ -396,7 +399,7 @@ const Indicator = new Lang.Class({
         let labelHeight = this.dropdown.height;
         let xOffset = Math.floor((itemWidth - labelWidth) / 2);
 
-        let x = stageX + xOffset;
+        let x = Math.min(stageX + xOffset, monitor.width - Math.max(itemWidth, labelWidth));
 
         let node = this.dropdown.get_theme_node();
         let yOffset = node.get_length('-y-offset');
