@@ -425,7 +425,7 @@ const Indicator = new Lang.Class({
         let labelHeight = this.dropdown.height;
         let xOffset = Math.floor((itemWidth - labelWidth) / 2);
 
-        let x = Math.min(stageX + xOffset, monitor.width - Math.max(itemWidth, labelWidth));
+        let x = Math.min(stageX + xOffset, monitor.width - 4 - Math.max(itemWidth, labelWidth));
 
         let node = this.dropdown.get_theme_node();
         let yOffset = node.get_length('-y-offset');
