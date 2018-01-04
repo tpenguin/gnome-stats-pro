@@ -387,8 +387,8 @@ const Indicator = new Lang.Class({
         this.dropdown.opacity = 0;
         this.dropdown.show();
 
-	let monitorIndex = Main.layoutManager.primaryIndex;
-	let monitor = Main.layoutManager.monitors[monitorIndex];
+        let monitorIndex = Main.layoutManager.primaryIndex;
+        let monitor = Main.layoutManager.monitors[monitorIndex];
 
         let [stageX, stageY] = this.actor.get_transformed_position();
 
