@@ -197,9 +197,17 @@ HorizontalGraph.prototype = {
     },
 
     _draw: function(area) {
+        if (Main.layoutManager._inOverview) return;
+
+        if (Main.overview.visibleTarget) return;
+        if (!this.actor.get_stage()) return;
+        if (!this.actor.visible) return;
+
         let [width, height] = area.get_surface_size();
+
         let themeNode = this.actor.get_theme_node();
         let cr = area.get_context();
+        if (!themeNode || !cr) return;
 
         //draw the background grid
         let color = themeNode.get_color(this.options.gridColor);
@@ -467,12 +475,15 @@ const Indicator = new Lang.Class({
     },
 
     _draw: function(area) {
-	if (!this.actor.get_stage()) return;
         if (!this.ready) return;
+        if (Main.overview.visibleTarget) return;
+        if (!this.actor.get_stage()) return;
+        if (!this.actor.visible) return;
 
         let [width, height] = area.get_surface_size();
         let cr = area.get_context();
         let themeNode = this.actor.get_theme_node();
+        if (!themeNode || !cr) return;
 
         //resize container based on number of bars to chart
         if (this.resized === undefined || !this.resized) {
