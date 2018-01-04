@@ -1010,7 +1010,7 @@ const Extension = new Lang.Class({
     },
 
     get showInLockScreen() {
-        return true;
+        return false;
     },
 
     get detailsInLockScreen() {
