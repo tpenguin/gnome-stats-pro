@@ -116,6 +116,7 @@ HorizontalGraph.prototype = {
 
     _init: function(options) {
         this.options = merge_options(this.options, options || {});
+        this.ready = true;
 
         this.graph = new St.DrawingArea({reactive: true});
         this.graph.connect('repaint', Lang.bind(this, this._draw));
@@ -138,7 +139,17 @@ HorizontalGraph.prototype = {
         }));
     },
 
+    enable: function() {
+        this.ready = true;
+    },
+
+    disable: function() {
+        this.ready = false;
+    },
+
     destroy: function() {
+        this.ready = false;
+
         Mainloop.source_remove(this._timeout);
 
         this.actor.destroy();
@@ -199,6 +210,7 @@ HorizontalGraph.prototype = {
     _draw: function(area) {
         if (Main.layoutManager._inOverview) return;
 
+        if (this.ready === false) return;
         if (Main.overview.visibleTarget) return;
         if (!this.actor.get_stage()) return;
         if (!this.actor.visible) return;
@@ -287,6 +299,7 @@ HorizontalGraph.prototype = {
     },
 
     show: function() {
+        this.ready = true;
         this.graphoverlay.actor.show();
         this.graphoverlay.actor.opacity = 0;
 
@@ -299,6 +312,7 @@ HorizontalGraph.prototype = {
     },
 
     hide: function() {
+        this.ready = false;
         this.graphoverlay.actor.hide();
     }
 };
@@ -382,6 +396,8 @@ const Indicator = new Lang.Class({
         this.ready = true;
     },
 
+    show: function() { this.enable(); },
+
     disable: function() {
         this.ready = false;
 
@@ -390,6 +406,8 @@ const Indicator = new Lang.Class({
             this._timeout = 0;
         }
     },
+
+    hide: function() { this.disable(); },
 
     showPopup: function(graph) {
         this.dropdown.opacity = 0;
@@ -463,9 +481,11 @@ const Indicator = new Lang.Class({
     },
 
     onShowPanel: function() {
+        this.show();
     },
 
     onHidePanel: function() {
+        this.hide();
     },
 
     _initValues: function() {
@@ -644,11 +664,23 @@ const CpuIndicator = new Lang.Class({
         this._prev = cpu;
     },
 
+    enable: function() {
+        this.parent();
+        if (this.cpu_graph) this.cpu_graph.enable();
+    },
+
+    disable: function() {
+        if (this.cpu_graph) this.cpu_graph.disable();
+        this.parent();
+    },
+
     showPopup: function() {
+        this.cpu_graph.enable();
         this.parent(this.cpu_graph);
     },
 
     hidePopup: function() {
+        this.cpu_graph.disable();
         this.parent(this.cpu_graph);
     }
 });
@@ -706,11 +738,23 @@ const MemoryIndicator = new Lang.Class({
         this.current_mem_value.set_text(mem_ttl_text);
     },
 
+    enable: function() {
+        this.parent();
+        if (this.mem_graph) this.mem_graph.enable();
+    },
+
+    disable: function() {
+        if (this.mem_graph) this.mem_graph.disable();
+        this.parent();
+    },
+
     showPopup: function() {
+        this.mem_graph.enable();
         this.parent(this.mem_graph);
     },
 
     hidePopup: function() {
+        this.mem_graph.disable();
         this.parent(this.mem_graph);
     }
 });
@@ -773,11 +817,23 @@ const SwapIndicator = new Lang.Class({
         }
     },
 
+    enable: function() {
+        this.parent();
+        if (this.swap_graph) this.swap_graph.enable();
+    },
+
+    disable: function() {
+        if (this.swap_graph) this.swap_graph.disable();
+        this.parent();
+    },
+
     showPopup: function() {
+        this.swap_graph.enable();
         this.parent(this.swap_graph);
     },
 
     hidePopup: function() {
+        this.swap_graph.disable();
         this.parent(this.swap_graph);
     }
 });
@@ -833,11 +889,23 @@ const NetworkIndicator = new Lang.Class({
         layout.attach(this.maximum_out_value, x+1, y+5, 1, 1);
     },
 
+    enable: function() {
+        this.parent();
+        if (this.net_graph) this.net_graph.enable();
+    },
+
+    disable: function() {
+        if (this.net_graph) this.net_graph.disable();
+        this.parent();
+    },
+
     showPopup: function() {
+        this.net_graph.enable();
         this.parent(this.net_graph);
     },
 
     hidePopup: function() {
+        this.net_graph.disable();
         this.parent(this.net_graph);
     },
 
@@ -1023,11 +1091,15 @@ const Extension = new Lang.Class({
         Main.panel._rightBox.insert_child_at_index(this._boxHolder, 0);
     },
 
+    show: function() { this.enable(); },
+
     disable: function() {
         this._indicators.forEach(function(i) { i.disable(); });
 
         Main.panel._rightBox.remove_child(this._boxHolder);
     },
+
+    hide: function() { this.disable(); },
 
     destroy: function() {
 	    this._indicators.forEach(function(i) { i.destroy(); });
