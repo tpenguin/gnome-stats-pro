@@ -76,6 +76,7 @@
 
 .gsp-dropdown {
     border-radius: 7px;
+    border: 2px solid rgba(64,64,64,0.6);
     padding: 12px 12px;
     background-color: rgba(0,0,0,0.9);
     text-align: center;
