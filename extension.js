@@ -434,6 +434,7 @@ const Indicator = new Lang.Class({
 
         let y = stageY + itemHeight + yOffset;
 
+        this.dropdown.set_height(this.dropdown.layout_manager.height);
         this.dropdown.set_position(x, y);
 
         Tweener.addTween(

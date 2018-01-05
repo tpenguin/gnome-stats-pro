@@ -83,7 +83,7 @@
     -y-offset: 8px;
     font-size: 9pt;
     font-weight: bold;
-    height: 264px;
+    /* height: 264px; */
     width: 384px;
 }
 
