@@ -702,9 +702,46 @@ const MemoryIndicator = new Lang.Class({
         this.current_label = new St.Label({style_class:'title_label'});
         this.current_label.set_text("Current:");
 
-        this.current_mem_label = new St.Label({style_class:'description_label'});
-        this.current_mem_label.set_text("Total memory usage");
-        this.current_mem_value = new St.Label({style_class:'value_label'});
+        // used, buffer, shared, cached, slab, locked, free, total
+        this.current_mem_used_label = new St.Label({style_class:'description_label'});
+        this.current_mem_used_label.set_text("Total memory usage");
+        this.current_mem_used_value = new St.Label({style_class:'value_label'});
+
+        this.current_mem_buffer_label = new St.Label({style_class:'description_label'});
+        this.current_mem_buffer_label.set_text("Total buffer usage");
+        this.current_mem_buffer_value = new St.Label({style_class:'value_label'});
+
+        this.current_mem_shared_label = new St.Label({style_class:'description_label'});
+        this.current_mem_shared_label.set_text("Total shared usage");
+        this.current_mem_shared_value = new St.Label({style_class:'value_label'});
+
+        this.current_mem_cached_label = new St.Label({style_class:'description_label'});
+        this.current_mem_cached_label.set_text("Total cache usage");
+        this.current_mem_cached_value = new St.Label({style_class:'value_label'});
+
+        this.current_mem_slab_label = new St.Label({style_class:'description_label'});
+        this.current_mem_slab_label.set_text("Total slab usage");
+        this.current_mem_slab_value = new St.Label({style_class:'value_label'});
+
+        this.current_mem_locked_label = new St.Label({style_class:'description_label'});
+        this.current_mem_locked_label.set_text("Total locked usage");
+        this.current_mem_locked_value = new St.Label({style_class:'value_label'});
+
+        this.current_mem_free_label = new St.Label({style_class:'description_label'});
+        this.current_mem_free_label.set_text("Total free usage");
+        this.current_mem_free_value = new St.Label({style_class:'value_label'});
+
+        this.current_mem_total_label = new St.Label({style_class:'description_label'});
+        this.current_mem_total_label.set_text("Total RAM present");
+        this.current_mem_total_value = new St.Label({style_class:'value_label'});
+
+        let layout = this.dropdown.layout_manager;
+
+        GTop.glibtop_get_mem(this.mem);
+
+        this.mem_graph = new HorizontalGraph({autoscale: false, units: 'B', max: this.mem.total});
+        this.mem_graph.addDataSet('mem-used', 'mem-used-color');
+
 
         let layout = this.dropdown.layout_manager;
 
@@ -717,8 +754,30 @@ const MemoryIndicator = new Lang.Class({
 
         let x = 0, y = 1;
         layout.attach(this.current_label, x+0, y+0, 2, 1);
-        layout.attach(this.current_mem_label, x+0, y+1, 1, 1);
-        layout.attach(this.current_mem_value, x+1, y+1, 1, 1);
+        // used, buffer, shared, cached, slab, locked, free, total
+        layout.attach(this.current_mem_used_label, x+0, y+1, 1, 1);
+        layout.attach(this.current_mem_used_value, x+1, y+1, 1, 1);
+        layout.attach(this.current_mem_buffer_label, x+0, y+2, 1, 1);
+        layout.attach(this.current_mem_buffer_value, x+1, y+2, 1, 1);
+        layout.attach(this.current_mem_shared_label, x+0, y+3, 1, 1);
+        layout.attach(this.current_mem_shared_value, x+1, y+3, 1, 1);
+        layout.attach(this.current_mem_cached_label, x+0, y+4, 1, 1);
+        layout.attach(this.current_mem_cached_value, x+1, y+4, 1, 1);
+        y += 5;
+        if (this.mem.slab !== undefined) {
+            layout.attach(this.current_mem_slab_label, x+0, y, 1, 1);
+            layout.attach(this.current_mem_slab_value, x+1, y, 1, 1);
+            ++y;
+        }
+        layout.attach(this.current_mem_locked_label, x+0, y, 1, 1);
+        layout.attach(this.current_mem_locked_value, x+1, y, 1, 1);
+        ++y;
+        layout.attach(this.current_mem_free_label, x+0, y, 1, 1);
+        layout.attach(this.current_mem_free_value, x+1, y, 1, 1);
+        ++y;
+        layout.attach(this.current_mem_total_label, x+0, y, 1, 1);
+        layout.attach(this.current_mem_total_value, x+1, y, 1, 1);
+        ++y;
     },
 
     _initValues: function() {
@@ -740,7 +799,30 @@ const MemoryIndicator = new Lang.Class({
         this.mem_graph.addDataPoint('mem-used', mem_used);
 
         let mem_ttl_text = "%s".format(mem_used.formatMetricPretty('B'));
-        this.current_mem_value.set_text(mem_ttl_text);
+        this.current_mem_used_value.set_text(mem_ttl_text);
+
+        let mem_ttl_text = "%s".format(this.mem.buffer.formatMetricPretty('B'));
+        this.current_mem_buffer_value.set_text(mem_ttl_text);
+
+        let mem_ttl_text = "%s".format(this.mem.shared.formatMetricPretty('B'));
+        this.current_mem_shared_value.set_text(mem_ttl_text);
+
+        let mem_ttl_text = "%s".format(this.mem.cached.formatMetricPretty('B'));
+        this.current_mem_cached_value.set_text(mem_ttl_text);
+
+        if (this.mem.slab !== undefined) {
+            let mem_ttl_text = "%s".format(this.mem.slab.formatMetricPretty('B'));
+            this.current_mem_slab_value.set_text(mem_ttl_text);
+        }
+
+        let mem_ttl_text = "%s".format(this.mem.locked.formatMetricPretty('B'));
+        this.current_mem_locked_value.set_text(mem_ttl_text);
+
+        let mem_ttl_text = "%s".format(this.mem.free.formatMetricPretty('B'));
+        this.current_mem_free_value.set_text(mem_ttl_text);
+
+        let mem_ttl_text = "%s".format(this.mem.total.formatMetricPretty('B'));
+        this.current_mem_total_value.set_text(mem_ttl_text);
     },
 
     enable: function() {
