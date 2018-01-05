@@ -180,7 +180,7 @@ HorizontalGraph.prototype = {
         let max = 0;
 
         this.renderStats.map(Lang.bind(this, function(k){
-            max = Math.max(this.stats[k].max, max);
+            max = this.stats[k].max;
         }));
 
         if (max < this.max) {
@@ -263,6 +263,8 @@ HorizontalGraph.prototype = {
         for (let i = 0; i < renderStats.length; ++i) {
             let stat = this.stats[renderStats[i]];
             let outlineColor = themeNode.get_color(stat.color);
+
+            if (this.max <= 0.00001) continue;
 
             if (i == 0) {
                 let color = new Clutter.Color(outlineColor);
