@@ -515,10 +515,12 @@ const Indicator = new Lang.Class({
 
         //draw the background grid
         let color = themeNode.get_color(this.options.gridColor);
-        let gridOffset = Math.floor(height / (INDICATOR_NUM_GRID_LINES + 1));
-        for (let i = 1; i <= INDICATOR_NUM_GRID_LINES; ++i) {
-            cr.moveTo(0, i * gridOffset + .5);
-            cr.lineTo(width, i * gridOffset + .5);
+        let gridOffset = Math.floor(height / (INDICATOR_NUM_GRID_LINES + 2));
+        for (let i = 0; i <= INDICATOR_NUM_GRID_LINES + 2; ++i) {
+            //cr.moveTo(0, i * gridOffset + .5);
+            //cr.lineTo(width, i * gridOffset + .5);
+            cr.moveTo(0, i * gridOffset);
+            cr.lineTo(width, i * gridOffset);
         }
         Clutter.cairo_set_source_color(cr, color);
         cr.setLineWidth(1);
