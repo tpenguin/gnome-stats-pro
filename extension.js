@@ -742,14 +742,6 @@ const MemoryIndicator = new Lang.Class({
         this.mem_graph = new HorizontalGraph({autoscale: false, units: 'B', max: this.mem.total});
         this.mem_graph.addDataSet('mem-used', 'mem-used-color');
 
-
-        let layout = this.dropdown.layout_manager;
-
-        GTop.glibtop_get_mem(this.mem);
-
-        this.mem_graph = new HorizontalGraph({autoscale: false, units: 'B', max: this.mem.total});
-        this.mem_graph.addDataSet('mem-used', 'mem-used-color');
-
         layout.attach(this.mem_graph.actor, 0, 0, 2, 1);
 
         let x = 0, y = 1;
