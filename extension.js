@@ -793,27 +793,27 @@ const MemoryIndicator = new Lang.Class({
         let mem_ttl_text = "%s".format(mem_used.formatMetricPretty('B'));
         this.current_mem_used_value.set_text(mem_ttl_text);
 
-        let mem_ttl_text = "%s".format(this.mem.buffer.formatMetricPretty('B'));
+        mem_ttl_text = "%s".format(this.mem.buffer.formatMetricPretty('B'));
         this.current_mem_buffer_value.set_text(mem_ttl_text);
 
-        let mem_ttl_text = "%s".format(this.mem.shared.formatMetricPretty('B'));
+        mem_ttl_text = "%s".format(this.mem.shared.formatMetricPretty('B'));
         this.current_mem_shared_value.set_text(mem_ttl_text);
 
-        let mem_ttl_text = "%s".format(this.mem.cached.formatMetricPretty('B'));
+        mem_ttl_text = "%s".format(this.mem.cached.formatMetricPretty('B'));
         this.current_mem_cached_value.set_text(mem_ttl_text);
 
         if (this.mem.slab !== undefined) {
-            let mem_ttl_text = "%s".format(this.mem.slab.formatMetricPretty('B'));
+            mem_ttl_text = "%s".format(this.mem.slab.formatMetricPretty('B'));
             this.current_mem_slab_value.set_text(mem_ttl_text);
         }
 
-        let mem_ttl_text = "%s".format(this.mem.locked.formatMetricPretty('B'));
+        mem_ttl_text = "%s".format(this.mem.locked.formatMetricPretty('B'));
         this.current_mem_locked_value.set_text(mem_ttl_text);
 
-        let mem_ttl_text = "%s".format(this.mem.free.formatMetricPretty('B'));
+        mem_ttl_text = "%s".format(this.mem.free.formatMetricPretty('B'));
         this.current_mem_free_value.set_text(mem_ttl_text);
 
-        let mem_ttl_text = "%s".format(this.mem.total.formatMetricPretty('B'));
+        mem_ttl_text = "%s".format(this.mem.total.formatMetricPretty('B'));
         this.current_mem_total_value.set_text(mem_ttl_text);
     },
 
