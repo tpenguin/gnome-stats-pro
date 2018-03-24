@@ -337,8 +337,11 @@ const Indicator = new Lang.Class({
         this.stats = {};
         this.renderStats = [];
 
-        this._barPadding = this.options.barPadding;
-        this._barWidth = this.options.barWidth;
+        let scale_factor = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        this.scale_factor = scale_factor;
+
+        this._barPadding = this.options.barPadding * scale_factor;
+        this._barWidth = this.options.barWidth * scale_factor;
 
         // permit subclass to optionally initialize
         this._initValues();
@@ -357,6 +360,11 @@ const Indicator = new Lang.Class({
                                   x_fill: true, y_fill: true });
         this.actor.add_actor(this.drawing_area);
         this.actor.connect('notify::visible', Lang.bind(this, this._onVisibilityChanged));
+
+        let [width, height] = this.drawing_area.get_size();
+
+        this.drawing_area.set_width(width * scale_factor);
+        this.drawing_area.set_height(height * scale_factor);
 
         this.resized = false;
 
