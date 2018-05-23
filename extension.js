@@ -351,6 +351,11 @@ const Indicator = new Lang.Class({
         this.drawing_area.connect('repaint', Lang.bind(this, this._draw));
         this.drawing_area.connect('button-press-event', function() {
             let app = Shell.AppSystem.get_default().lookup_app('gnome-system-monitor.desktop');
+
+            if (app === undefined || app === null) {
+                app = Shell.AppSystem.get_default().lookup_app('gnome-system-monitor_gnome-system-monitor.desktop');
+            }
+
             app.open_new_window(-1);
             return true;
         });
