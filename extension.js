@@ -1118,16 +1118,31 @@ const NetworkIndicator = new Lang.Class({
         }
     },
 
+    _deviceIsActive: function(name) {
+        this._nlist = new GTop.glibtop_netlist;
+
+        let names = GTop.glibtop_get_netlist(this._nlist);
+
+        for (let dname in names)
+        {
+            if (dname === name) return true;
+        }
+
+        return false;
+    },
+
     _updateValues: function() {
         let accum = [0, 0, 0, 0, 0, 0];
         for (let ifn in this._ifs) {
-            GTop.glibtop_get_netload(this._gtop, this._ifs[ifn]);
-            accum[0] += this._gtop.bytes_in;
-            accum[1] += this._gtop.errors_in;
-            accum[2] += this._gtop.bytes_out;
-            accum[3] += this._gtop.errors_out;
-            accum[4] += this._gtop.collisions;
-            accum[5] += this._ifs_speed[ifn];
+            if (this._deviceIsActive(ifn)) {
+                GTop.glibtop_get_netload(this._gtop, this._ifs[ifn]);
+                accum[0] += this._gtop.bytes_in;
+                accum[1] += this._gtop.errors_in;
+                accum[2] += this._gtop.bytes_out;
+                accum[3] += this._gtop.errors_out;
+                accum[4] += this._gtop.collisions;
+                accum[5] += this._ifs_speed[ifn];
+            }
         }
 
         let time = GLib.get_monotonic_time() * 0.000001024; // seconds
