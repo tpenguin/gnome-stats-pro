@@ -1118,19 +1118,6 @@ const NetworkIndicator = new Lang.Class({
         }
     },
 
-    _getDevice: function(name) {
-      for (let j = 0; j < this._iface_list.length; j++) {
-          let deviceName = this._iface_list[j].get_ip_iface() || this._iface_list[j].get_iface();
-
-          if (deviceName === name)
-          {
-              return this._iface_list[j];
-          }
-      }
-
-      return null;
-    },
-
     _updateValues: function() {
         let accum = [0, 0, 0, 0, 0, 0];
         for (let j = 0; j < this._ifs.length; j++) {
