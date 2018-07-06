@@ -1069,12 +1069,16 @@ const NetworkIndicator = new Lang.Class({
     _initValues: function() {
         this._ifs = [];
         this._ifs_speed = [];
+        this._iface_list = [];
         this._last = [0, 0, 0, 0, 0];
         this._usage = [0, 0, 0, 0, 0];
         this._usedp = 0;
         this._previous = [-1, -1, -1, -1, -1];
         this._nmclient = libnm_glib ? NM.Client.new() : NM.Client.new(null);
         this._update_iface_list();
+
+        this._nmclient.connect('device-added', Lang.bind(this, this._update_iface_list));
+        this._nmclient.connect('device-removed', Lang.bind(this, this._update_iface_list));
 
         this._gtop = new GTop.glibtop_netload;
         this._last_time = 0;
@@ -1086,7 +1090,7 @@ const NetworkIndicator = new Lang.Class({
     },
 
     _update_iface_list: function() {
-        if (this._iface_list != undefined && this._ifSignalIds != undefined) {
+        if (this._iface_list !== undefined && this._ifSignalIds !== undefined) {
             for (let j = 0; j < this._ifSignalIds.length; j++) {
                 this._iface_list[j].disconnect(this._ifSignalIds[j]);
             }
@@ -1104,7 +1108,7 @@ const NetworkIndicator = new Lang.Class({
 
             for (let j = 0; j < iface_list.length; j++) {
                 this._ifSignalIds[j] = iface_list[j].connect('state-changed', Lang.bind(this, this._update_iface_list));
-                if (iface_list[j].state == NetworkManager.DeviceState.ACTIVATED) {
+                if (iface_list[j].state === NetworkManager.DeviceState.ACTIVATED) {
                     this._ifs.push(iface_list[j].get_ip_iface() || iface_list[j].get_iface());
                     this._ifs_speed.push((iface_list[j].get_speed !== undefined ? iface_list[j].get_speed() : -1));
                 }
@@ -1114,16 +1118,33 @@ const NetworkIndicator = new Lang.Class({
         }
     },
 
+    _getDevice: function(name) {
+      for (let j = 0; j < this._iface_list.length; j++) {
+          let deviceName = this._iface_list[j].get_ip_iface() || this._iface_list[j].get_iface();
+
+          if (deviceName === name)
+          {
+              return this._iface_list[j];
+          }
+      }
+
+      return null;
+    },
+
     _updateValues: function() {
         let accum = [0, 0, 0, 0, 0, 0];
         for (let ifn in this._ifs) {
-            GTop.glibtop_get_netload(this._gtop, this._ifs[ifn]);
-            accum[0] += this._gtop.bytes_in;
-            accum[1] += this._gtop.errors_in;
-            accum[2] += this._gtop.bytes_out;
-            accum[3] += this._gtop.errors_out;
-            accum[4] += this._gtop.collisions;
-            accum[5] += this._ifs_speed[ifn];
+            let device = this._getDevice(ifn);
+
+            if (device !== null && device.state === NetworkManager.DeviceState.ACTIVATED) {
+                GTop.glibtop_get_netload(this._gtop, this._ifs[ifn]);
+                accum[0] += this._gtop.bytes_in;
+                accum[1] += this._gtop.errors_in;
+                accum[2] += this._gtop.bytes_out;
+                accum[3] += this._gtop.errors_out;
+                accum[4] += this._gtop.collisions;
+                accum[5] += this._ifs_speed[ifn];
+            }
         }
 
         let time = GLib.get_monotonic_time() * 0.000001024; // seconds
