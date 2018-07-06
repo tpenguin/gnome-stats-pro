@@ -117,6 +117,8 @@ HorizontalGraph.prototype = {
     _init: function(options) {
         this.options = merge_options(this.options, options || {});
         this.ready = true;
+        this.gridColor = '#575757';
+        this.styleChanged = false;
 
         this.graph = new St.DrawingArea({reactive: true});
         this.graph.connect('repaint', Lang.bind(this, this._draw));
@@ -128,6 +130,7 @@ HorizontalGraph.prototype = {
             y_fill: true
         });
         this.actor.add_actor(this.graph);
+        this.actor.connect('style-changed', Lang.bind(this, this._updateStyles));
 
         this.graphoverlay = new GraphOverlay;
 
@@ -157,7 +160,7 @@ HorizontalGraph.prototype = {
 
     addDataSet: function(name, color) {
         this.renderStats.push(name);
-        this.stats[name] = {color: color, values: [], scaled: [], max: -1};
+        this.stats[name] = {color: color, cairo_color: -1, values: [], scaled: [], max: -1};
     },
 
     addDataPoint: function(name, value) {
@@ -195,6 +198,28 @@ HorizontalGraph.prototype = {
         }
     },
 
+    _updateStyles: function() {
+        // get and cache the grid color
+        let themeNode = this.actor.get_theme_node();
+        let [hasGridColor, gridColor] =
+            themeNode.lookup_color(this.options.gridColor, false);
+        if (hasGridColor)
+            this.gridColor = gridColor;
+
+        this.renderStats.map(Lang.bind(this, function(k){
+            let stat = this.stats[k];
+
+
+            let [hasStatColor, statColor] = themeNode.lookup_color(stat.color, false);
+
+            if (hasStatColor) {
+                stat.cairo_color = statColor;
+            } else {
+                stat.cairo_color = new Clutter.Color({red: 0, green: 190, blue: 240, alpha: 255});
+            }
+        }));
+    },
+
     // Used to draws major/minor division lines within the graph.
     _drawGridLines: function(cr, width, gridOffset, count, color) {
         for (let i = 1; i <= count; ++i) {
@@ -217,12 +242,16 @@ HorizontalGraph.prototype = {
 
         let [width, height] = area.get_surface_size();
 
-        let themeNode = this.actor.get_theme_node();
+        if (!this.styleChanged) {
+            this._updateStyles();
+            this.styleChanged = true;
+        }
+
         let cr = area.get_context();
-        if (!themeNode || !cr) return;
+        if (!cr) return;
 
         //draw the background grid
-        let color = themeNode.get_color(this.options.gridColor);
+        let color = new Clutter.Color(this.gridColor);
         let gridOffset = Math.floor(height / (INDICATOR_NUM_GRID_LINES + 1));
 
         // draws major divisions
@@ -262,7 +291,7 @@ HorizontalGraph.prototype = {
 
         for (let i = 0; i < renderStats.length; ++i) {
             let stat = this.stats[renderStats[i]];
-            let outlineColor = themeNode.get_color(stat.color);
+            let outlineColor = stat.cairo_color;
 
             if (this.max <= 0.00001) continue;
 
@@ -336,6 +365,8 @@ const Indicator = new Lang.Class({
         this._timeout = 0;
         this.stats = {};
         this.renderStats = [];
+        this.gridColor = "#575757";
+        this.styleCached = false;
 
         let scale_factor = St.ThemeContext.get_for_stage(global.stage).scale_factor;
         this.scale_factor = scale_factor;
@@ -365,6 +396,7 @@ const Indicator = new Lang.Class({
                                   x_fill: true, y_fill: true });
         this.actor.add_actor(this.drawing_area);
         this.actor.connect('notify::visible', Lang.bind(this, this._onVisibilityChanged));
+        this.actor.connect('style-changed', Lang.bind(this, this._updateStyles));
 
         let [width, height] = this.drawing_area.get_size();
 
@@ -384,7 +416,11 @@ const Indicator = new Lang.Class({
 
     addDataSet: function(name, color) {
         this.renderStats.push(name);
-        this.stats[name] = {color: color, values: []};
+        this.stats[name] = {
+            color: color,
+            cairo_color: false,
+            values: []
+        };
     },
 
     addDataPoint: function(name, value) {
@@ -513,6 +549,28 @@ const Indicator = new Lang.Class({
     _updateValues: function() {
     },
 
+    _updateStyles: function() {
+        // get and cache the grid color
+        let themeNode = this.actor.get_theme_node();
+        let [hasGridColor, gridColor] =
+            themeNode.lookup_color(this.options.gridColor, false);
+        if (hasGridColor)
+            this.gridColor = gridColor;
+
+        this.renderStats.map(Lang.bind(this, function(k){
+            let stat = this.stats[k];
+
+
+            let [hasStatColor, statColor] = themeNode.lookup_color(stat.color, false);
+
+            if (hasStatColor) {
+                stat.cairo_color = statColor;
+            } else {
+                stat.cairo_color = new Clutter.Color({red: 0, green: 190, blue: 240, alpha: 255});
+            }
+        }));
+    },
+
     _draw: function(area) {
         if (!this.ready) return;
         if (Main.overview.visibleTarget) return;
@@ -521,8 +579,12 @@ const Indicator = new Lang.Class({
 
         let [width, height] = area.get_surface_size();
         let cr = area.get_context();
-        let themeNode = this.actor.get_theme_node();
-        if (!themeNode || !cr) return;
+        if (!cr) return;
+
+        if (!this.styleCached) {
+            this._updateStyles();
+            this.styleCached = true;
+        }
 
         //resize container based on number of bars to chart
         if (this.resized === undefined || !this.resized) {
@@ -531,7 +593,7 @@ const Indicator = new Lang.Class({
         }
 
         //draw the background grid
-        let color = themeNode.get_color(this.options.gridColor);
+        let color = new Clutter.Color(this.gridColor);
         let gridOffset = Math.floor(height / (INDICATOR_NUM_GRID_LINES + 2));
         for (let i = 0; i <= INDICATOR_NUM_GRID_LINES + 2; ++i) {
             //cr.moveTo(0, i * gridOffset + .5);
@@ -559,7 +621,7 @@ const Indicator = new Lang.Class({
         for (let i = 0; i < renderStats.length; ++i) {
             let stat = this.stats[renderStats[i]];
             // We outline at full opacity and fill with 40% opacity
-            let outlineColor = themeNode.get_color(stat.color);
+            let outlineColor = stat.cairo_color;
             let color = new Clutter.Color(outlineColor);
             color.alpha = color.alpha * .8;
 
