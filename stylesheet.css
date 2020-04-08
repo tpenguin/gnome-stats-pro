@@ -5,8 +5,6 @@
     padding-right: 4px;
     padding-bottom: 4px;
     padding-top: 4px;
-
-    height: 100%;
 }
 
 .gsp-graph-area {
@@ -49,7 +47,6 @@
 .gsp-indicator {
     background-color: #1e1e1e;
     border-radius: 2px;
-    height: 100%;
     width: 8px;
 
     grid-color: #575757;
