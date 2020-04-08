@@ -199,6 +199,8 @@ HorizontalGraph.prototype = {
     },
 
     _updateStyles: function() {
+        if (false === this.actor.is_mapped()) return;
+
         // get and cache the grid color
         let themeNode = this.actor.get_theme_node();
         let [hasGridColor, gridColor] =
@@ -398,11 +400,6 @@ const Indicator = new Lang.Class({
         this.actor.connect('notify::visible', Lang.bind(this, this._onVisibilityChanged));
         this.actor.connect('style-changed', Lang.bind(this, this._updateStyles));
 
-        let [width, height] = this.drawing_area.get_size();
-
-        this.drawing_area.set_width(width * scale_factor);
-        this.drawing_area.set_height(height * scale_factor);
-
         this.resized = false;
 
         this.dropdown = new St.Widget({
@@ -550,6 +547,13 @@ const Indicator = new Lang.Class({
     },
 
     _updateStyles: function() {
+        if (false === this.actor.is_mapped()) return;
+
+        let [width, height] = this.drawing_area.get_size();
+
+        this.drawing_area.set_width(width * this.scale_factor);
+        this.drawing_area.set_height(height * this.scale_factor);
+
         // get and cache the grid color
         let themeNode = this.actor.get_theme_node();
         let [hasGridColor, gridColor] =
