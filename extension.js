@@ -17,7 +17,6 @@ const NM = libnm_glib ? imports.gi.NMClient : imports.gi.NM;
 const NetworkManager = libnm_glib ? imports.gi.NetworkManager : NM;
 
 const Main = imports.ui.main;
-const Tweener = imports.ui.tweener;
 
 // FIXME: Add gettext...
 //const Gettext = imports.gettext.domain('gnome-shell-extensions');
@@ -72,8 +71,6 @@ GraphOverlay.prototype = {
         this.actor = new St.Bin({
             style_class:'gsp-graph-overlay',
             reactive: true,
-            x_fill: true,
-            y_fill: true
         });
 
         this.actor.add_actor(this.label);
@@ -125,9 +122,7 @@ HorizontalGraph.prototype = {
 
         this.actor = new St.Bin({
             style_class: 'gsp-graph-area',
-            reactive: true,
-            x_fill: true,
-            y_fill: true
+            reactive: true
         });
         this.actor.add_actor(this.graph);
         this.actor.connect('style-changed', Lang.bind(this, this._updateStyles));
@@ -336,11 +331,11 @@ HorizontalGraph.prototype = {
         this.graphoverlay.actor.show();
         this.graphoverlay.actor.opacity = 0;
 
-        Tweener.addTween(this.graphoverlay.actor,
+        this.graphoverlay.actor.ease(
                          {
                              opacity: 255,
                              time: ITEM_LABEL_SHOW_TIME,
-                             transition: 'easeOutQuad'
+                             transition: Clutter.AnimationMode.EASE_OUT_QUAD,
                          });
     },
 
@@ -395,7 +390,7 @@ const Indicator = new Lang.Class({
 
         this.actor = new St.Bin({ style_class: "gsp-indicator",
                                   reactive: true, track_hover: true,
-                                  x_fill: true, y_fill: true });
+                            });
         this.actor.add_actor(this.drawing_area);
         this.actor.connect('notify::visible', Lang.bind(this, this._onVisibilityChanged));
         this.actor.connect('style-changed', Lang.bind(this, this._updateStyles));
@@ -486,12 +481,11 @@ const Indicator = new Lang.Class({
 
         this.dropdown.set_position(x, y);
 
-        Tweener.addTween(
-            this.dropdown,
+        this.dropdown.ease(
             {
                 opacity: 255,
                 time: ITEM_LABEL_SHOW_TIME,
-                transition: 'easeOutQuad',
+                transition: Clutter.AnimationMode.EASE_OUT_QUAD,
                 onComplete: function() {
                     if (graph !== undefined) {
                         let [x1, y1] = graph.actor.get_position();
@@ -503,12 +497,11 @@ const Indicator = new Lang.Class({
     },
 
     hidePopup: function (graph) {
-        Tweener.addTween(
-            this.dropdown,
+        this.dropdown.ease(
             {
                 opacity: 0,
                 time: ITEM_LABEL_HIDE_TIME,
-                transition: 'easeOutQuad',
+                transition: Clutter.AnimationMode.EASE_OUT_QUAD,
                 onComplete: Lang.bind(this, function() {
                     graph.hide();
                     this.dropdown.hide();
