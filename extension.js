@@ -17,7 +17,13 @@ const NM = libnm_glib ? imports.gi.NMClient : imports.gi.NM;
 const NetworkManager = libnm_glib ? imports.gi.NetworkManager : NM;
 
 const Main = imports.ui.main;
-const Tweener = imports.ui.tweener;
+
+var Tweener;
+try {
+    Tweener = imports.ui.tweener;
+} catch (e) {
+    Tweener = imports.tweener.tweener;
+}
 
 // FIXME: Add gettext...
 //const Gettext = imports.gettext.domain('gnome-shell-extensions');
@@ -71,10 +77,15 @@ GraphOverlay.prototype = {
 
         this.actor = new St.Bin({
             style_class:'gsp-graph-overlay',
-            reactive: true,
-            x_fill: true,
-            y_fill: true
+            reactive: true
         });
+        try {
+            this.actor.set_x_fill(true);
+            this.actor.set_y_fill(true);
+        } catch (e) {
+            this.actor.set_x_expand(true);
+            this.actor.set_y_expand(true);
+        }
 
         this.actor.add_actor(this.label);
 
@@ -125,10 +136,15 @@ HorizontalGraph.prototype = {
 
         this.actor = new St.Bin({
             style_class: 'gsp-graph-area',
-            reactive: true,
-            x_fill: true,
-            y_fill: true
+            reactive: true
         });
+        try {
+            this.actor.set_x_fill(true);
+            this.actor.set_y_fill(true);
+        } catch (e) {
+            this.actor.set_x_expand(true);
+            this.actor.set_y_expand(true);
+        }
         this.actor.add_actor(this.graph);
         this.actor.connect('style-changed', Lang.bind(this, this._updateStyles));
 
@@ -394,8 +410,12 @@ const Indicator = new Lang.Class({
         });
 
         this.actor = new St.Bin({ style_class: "gsp-indicator",
-                                  reactive: true, track_hover: true,
-                                  x_fill: true, y_fill: true });
+                                  reactive: true, track_hover: true });
+        try {
+            this.actor.set_x_fill(true);
+        } catch (e) {
+            this.actor.set_x_expand(true);
+        }
         this.actor.add_actor(this.drawing_area);
         this.actor.connect('notify::visible', Lang.bind(this, this._onVisibilityChanged));
         this.actor.connect('style-changed', Lang.bind(this, this._updateStyles));
