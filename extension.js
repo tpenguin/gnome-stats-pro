@@ -18,13 +18,6 @@ const NetworkManager = libnm_glib ? imports.gi.NetworkManager : NM;
 
 const Main = imports.ui.main;
 
-var Tweener;
-try {
-    Tweener = imports.ui.tweener;
-} catch (e) {
-    Tweener = imports.tweener.tweener;
-}
-
 // FIXME: Add gettext...
 //const Gettext = imports.gettext.domain('gnome-shell-extensions');
 //const _ = Gettext.gettext;
@@ -79,13 +72,6 @@ GraphOverlay.prototype = {
             style_class:'gsp-graph-overlay',
             reactive: true
         });
-        try {
-            this.actor.set_x_fill(true);
-            this.actor.set_y_fill(true);
-        } catch (e) {
-            this.actor.set_x_expand(true);
-            this.actor.set_y_expand(true);
-        }
 
         this.actor.add_actor(this.label);
 
@@ -138,13 +124,6 @@ HorizontalGraph.prototype = {
             style_class: 'gsp-graph-area',
             reactive: true
         });
-        try {
-            this.actor.set_x_fill(true);
-            this.actor.set_y_fill(true);
-        } catch (e) {
-            this.actor.set_x_expand(true);
-            this.actor.set_y_expand(true);
-        }
         this.actor.add_actor(this.graph);
         this.actor.connect('style-changed', Lang.bind(this, this._updateStyles));
 
@@ -199,7 +178,7 @@ HorizontalGraph.prototype = {
         let max = 0;
 
         this.renderStats.map(Lang.bind(this, function(k){
-            max = Math.max(max, this.stats[k].max);
+            max = this.stats[k].max;
         }));
 
         if (max < this.max) {
@@ -226,7 +205,6 @@ HorizontalGraph.prototype = {
 
         this.renderStats.map(Lang.bind(this, function(k){
             let stat = this.stats[k];
-
 
             let [hasStatColor, statColor] = themeNode.lookup_color(stat.color, false);
 
@@ -352,11 +330,11 @@ HorizontalGraph.prototype = {
         this.graphoverlay.actor.show();
         this.graphoverlay.actor.opacity = 0;
 
-        Tweener.addTween(this.graphoverlay.actor,
+        this.graphoverlay.actor.ease(
                          {
                              opacity: 255,
                              time: ITEM_LABEL_SHOW_TIME,
-                             transition: 'easeOutQuad'
+                             transition: Clutter.AnimationMode.EASE_OUT_QUAD
                          });
     },
 
@@ -411,11 +389,6 @@ const Indicator = new Lang.Class({
 
         this.actor = new St.Bin({ style_class: "gsp-indicator",
                                   reactive: true, track_hover: true });
-        try {
-            this.actor.set_x_fill(true);
-        } catch (e) {
-            this.actor.set_x_expand(true);
-        }
         this.actor.add_actor(this.drawing_area);
         this.actor.connect('notify::visible', Lang.bind(this, this._onVisibilityChanged));
         this.actor.connect('style-changed', Lang.bind(this, this._updateStyles));
@@ -506,12 +479,11 @@ const Indicator = new Lang.Class({
 
         this.dropdown.set_position(x, y);
 
-        Tweener.addTween(
-            this.dropdown,
+       this.dropdown.ease(
             {
                 opacity: 255,
                 time: ITEM_LABEL_SHOW_TIME,
-                transition: 'easeOutQuad',
+                transition: Clutter.AnimationMode.EASE_OUT_QUAD,
                 onComplete: function() {
                     if (graph !== undefined) {
                         let [x1, y1] = graph.actor.get_position();
@@ -523,12 +495,11 @@ const Indicator = new Lang.Class({
     },
 
     hidePopup: function (graph) {
-        Tweener.addTween(
-            this.dropdown,
+        this.dropdown.ease(
             {
                 opacity: 0,
                 time: ITEM_LABEL_HIDE_TIME,
-                transition: 'easeOutQuad',
+                transition: Clutter.AnimationMode.EASE_OUT_QUAD,
                 onComplete: Lang.bind(this, function() {
                     graph.hide();
                     this.dropdown.hide();
