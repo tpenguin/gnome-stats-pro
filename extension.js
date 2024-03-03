@@ -178,7 +178,7 @@ HorizontalGraph.prototype = {
         let max = 0;
 
         this.renderStats.map(Lang.bind(this, function(k){
-            max = this.stats[k].max;
+            max = Math.max(max, this.stats[k].max);
         }));
 
         if (max < this.max) {
